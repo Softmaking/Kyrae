@@ -1,0 +1,77 @@
+<div class="p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Permisos</h1>
+    @if (authService.hasPermission('PERMISSIONS_CREATE')) {
+      <button (click)="showCreateModal.set(true)" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover">
+        Nuevo permiso
+      </button>
+    }
+  </div>
+
+  <app-table
+    title="Listado de permisos"
+    [total]="filteredPermissions().length"
+    [pageSize]="pageSize()"
+    [currentPage]="currentPage()"
+    [searchTerm]="searchTerm()"
+    [loading]="permissionsService.loading()"
+    (pageChange)="goToPage($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (searchChange)="onSearchChange($event)"
+  >
+    <div header-actions>
+      <p class="admin-table-meta">{{ filteredPermissions().length }} registros</p>
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (perm of paginatedPermissions(); track perm.id) {
+          <tr>
+            <td><span class="admin-table-code">{{ perm.name }}</span></td>
+            <td>{{ perm.description || '-' }}</td>
+            <td>
+              <div class="admin-table-actions">
+                @if (authService.hasPermission('PERMISSIONS_DELETE')) {
+                  <button (click)="permissionsService.remove(perm.id)" class="admin-table-action-danger">Eliminar</button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="3" class="admin-table-empty">No se encontraron permisos</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-table>
+</div>
+
+@if (showCreateModal()) {
+  <app-form-modal title="Nuevo permiso" (close)="cancelCreate()">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+          <input [(ngModel)]="formData.name" name="name" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="PERMISSION_CODE" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+          <input [(ngModel)]="formData.description" name="description" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Descripción opcional" />
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" (click)="cancelCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}

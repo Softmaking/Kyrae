@@ -1,0 +1,147 @@
+<div class="p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Organizaciones</h1>
+    @if (authService.hasPermission('ORGANIZATIONS_CREATE')) {
+      <button (click)="showCreateModal.set(true)" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover">
+        Nueva organización
+      </button>
+    }
+  </div>
+
+  <app-table
+    title="Listado de organizaciones"
+    [total]="filteredOrganizations().length"
+    [pageSize]="pageSize()"
+    [currentPage]="currentPage()"
+    [searchTerm]="searchTerm()"
+    [loading]="orgService.loading()"
+    (pageChange)="goToPage($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (searchChange)="onSearchChange($event)"
+  >
+    <div header-actions>
+      <p class="admin-table-meta">{{ filteredOrganizations().length }} registros</p>
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Estado</th>
+          <th>Creación</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (org of paginatedOrganizations(); track org.id) {
+          <tr>
+            <td><span class="admin-table-code">{{ org.code }}</span></td>
+            <td class="font-medium text-gray-800">{{ org.name }}</td>
+            <td>{{ org.description || '-' }}</td>
+            <td>
+              <span [class]="org.isActive ? 'admin-table-status-active' : 'admin-table-status-inactive'">
+                {{ org.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-sm text-gray-500">{{ formatDate(org.createdAt) }}</td>
+            <td>
+              <div class="admin-table-actions">
+                @if (authService.hasPermission('ORGANIZATIONS_UPDATE')) {
+                  <button (click)="startEdit(org)" class="admin-table-action-button">Editar</button>
+                  <button (click)="onToggleActive(org)" class="admin-table-action-button">
+                    {{ org.isActive ? 'Desactivar' : 'Activar' }}
+                  </button>
+                  <button (click)="openUserModal(org)" class="admin-table-action-button">Usuarios</button>
+                }
+                @if (authService.hasPermission('ORGANIZATIONS_DELETE')) {
+                  <button (click)="orgService.remove(org.id)" class="admin-table-action-danger">Eliminar</button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="admin-table-empty">No se encontraron organizaciones</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-table>
+
+  @if (showUserModal()) {
+    <app-user-assignment-modal
+      title="Usuarios de la organización"
+      [assignedUsers]="assignedOrgUsers()"
+      [availableUsers]="usersService.users().map(u => ({ id: u.id, email: u.email, fullName: u.fullName, isActive: u.isActive }))"
+      (add)="onAddOrgUser($event)"
+      (remove)="onRemoveOrgUser($event)"
+      (close)="showUserModal.set(false)"
+    />
+  }
+</div>
+
+@if (showCreateModal()) {
+  <app-form-modal title="Nueva organización" (close)="cancelCreate()">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Código</label>
+          <input [(ngModel)]="formData.code" name="code" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="ORG-001" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+          <input [(ngModel)]="formData.name" name="name" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Nombre de la organización" />
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+        <input [(ngModel)]="formData.description" name="description" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Descripción opcional" />
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" (click)="cancelCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (showEditModal()) {
+  <app-form-modal title="Editar organización" (close)="requestCancelEdit()">
+    <form (ngSubmit)="requestSave()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Código</label>
+          <input [(ngModel)]="editFormData.code" name="edit-code" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+          <input [(ngModel)]="editFormData.name" name="edit-name" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+        <input [(ngModel)]="editFormData.description" name="edit-description" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+        <button type="button" (click)="requestCancelEdit()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (confirmAction()) {
+  <app-confirm-dialog
+    [title]="confirmAction() === 'save' ? 'Guardar cambios' : 'Cancelar edición'"
+    [message]="confirmAction() === 'save' ? '¿Estás seguro de guardar los cambios?' : '¿Estás seguro de cancelar? Los cambios no guardados se perderán.'"
+    [confirmLabel]="confirmAction() === 'save' ? 'Guardar' : 'Cancelar edición'"
+    [confirmDanger]="confirmAction() === 'cancel'"
+    (confirm)="handleConfirm()"
+    (cancel)="handleDismiss()"
+  />
+}

@@ -1,0 +1,10 @@
+<div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 pt-12 pb-12">
+  <div class="w-full rounded-2xl bg-white p-6 shadow-xl [@media(min-width:640px)]:my-8" [class]="widthClass" (click)="$event.stopPropagation()">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-lg font-bold text-gray-800">{{ title }}</h2>
+      <button (click)="close.emit()" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">&times;</button>
+    </div>
+
+    <ng-content />
+  </div>
+</div>

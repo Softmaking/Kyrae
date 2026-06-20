@@ -1,0 +1,157 @@
+/* You can add global styles to this file, and also import other style files */
+
+@import "tailwindcss";
+@source "./app/**/*.{html,ts}";
+
+@theme {
+  --color-brand-primary: #2f80c9;
+  --color-brand-primary-hover: #246fb4;
+  --color-brand-dark-900: #0f172a;
+  --color-brand-dark-800: #111827;
+  --color-brand-dark-700: #1f2937;
+  --color-brand-soft: #eef3fb;
+  --color-brand-soft-2: #f5f8fc;
+}
+
+@theme {
+  --color-blue-100: #ebf8ff;
+  --color-blue-200: #bee3f8;
+  --color-blue-300: #90cdf4;
+  --color-blue-400: #63b3ed;
+  --color-blue-500: #4299e1;
+  --color-blue-600: #3182ce;
+  --color-blue-700: #2b6cb0;
+  --color-blue-800: #2c5282;
+  --color-blue-900: #2a4365;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 6rem;
+}
+
+body {
+  font-family: Roboto, Arial, sans-serif;
+}
+
+@layer components {
+  .admin-table-card {
+    @apply overflow-hidden rounded-2xl border border-gray-200 bg-white;
+  }
+
+  .admin-table-card-header {
+    @apply flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5;
+  }
+
+  .admin-table-title {
+    @apply text-base font-medium text-gray-800;
+  }
+
+  .admin-table-meta {
+    @apply text-sm text-gray-500;
+  }
+
+  .admin-table-shell {
+    @apply p-5 sm:p-6;
+  }
+
+  .admin-table-toolbar {
+    @apply mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .admin-table-page-size {
+    @apply flex items-center gap-3 text-sm text-gray-500;
+  }
+
+  .admin-table-select {
+    @apply h-9 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10;
+  }
+
+  .admin-table-search {
+    @apply h-11 w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10 sm:w-80;
+  }
+
+  .admin-table-search-icon {
+    @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400;
+  }
+
+  .admin-table-wrapper {
+    @apply overflow-hidden rounded-xl border border-gray-200 bg-white;
+  }
+
+  .admin-table-scroll {
+    @apply max-w-full overflow-x-auto;
+  }
+
+  .admin-table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
+
+  .admin-table thead {
+    @apply bg-brand-soft-2;
+  }
+
+  .admin-table th {
+    @apply whitespace-nowrap border-r border-gray-200 px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-600 last:border-r-0;
+  }
+
+  .admin-table tbody {
+    @apply divide-y divide-gray-100;
+  }
+
+  .admin-table tr {
+    @apply transition-colors duration-150;
+  }
+
+  .admin-table tbody tr:hover {
+    @apply bg-gray-50;
+  }
+
+  .admin-table td {
+    @apply whitespace-nowrap px-4 py-4 text-sm text-gray-700;
+  }
+
+  .admin-table-code {
+    @apply font-mono text-xs font-medium text-gray-800;
+  }
+
+  .admin-table-empty {
+    @apply px-4 py-8 text-center text-sm text-gray-500;
+  }
+
+  .admin-table-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .admin-table-action-button {
+    @apply rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-brand-primary hover:bg-brand-soft hover:text-brand-primary;
+  }
+
+  .admin-table-action-danger {
+    @apply rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-50;
+  }
+
+  .admin-table-status-active {
+    @apply rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/20;
+  }
+
+  .admin-table-status-inactive {
+    @apply rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 ring-1 ring-red-600/20;
+  }
+
+  .admin-table-footer {
+    @apply mt-4 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .admin-table-pagination {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .admin-table-page-button {
+    @apply rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:border-brand-primary hover:bg-brand-soft hover:text-brand-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-200 disabled:hover:bg-white disabled:hover:text-gray-600;
+  }
+
+  .admin-table-page-button-active {
+    @apply rounded-lg border border-brand-primary bg-brand-primary px-3 py-1.5 text-sm font-medium text-white;
+  }
+}

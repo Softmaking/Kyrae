@@ -1,0 +1,160 @@
+<div class="p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Roles</h1>
+    @if (authService.hasPermission('ROLES_CREATE')) {
+      <button (click)="showCreateModal.set(true)" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover">
+        Nuevo rol
+      </button>
+    }
+  </div>
+
+  <app-table
+    title="Listado de roles"
+    [total]="filteredRoles().length"
+    [pageSize]="pageSize()"
+    [currentPage]="currentPage()"
+    [searchTerm]="searchTerm()"
+    [loading]="rolesService.loading()"
+    (pageChange)="goToPage($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (searchChange)="onSearchChange($event)"
+  >
+    <div header-actions>
+      <p class="admin-table-meta">{{ filteredRoles().length }} registros</p>
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Permisos</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (role of paginatedRoles(); track role.id) {
+          <tr>
+            <td class="font-medium text-gray-800">{{ role.name }}</td>
+            <td>{{ role.description || '-' }}</td>
+            <td>
+              @if (role.permissions.length) {
+                <div class="flex flex-wrap gap-1">
+                  @for (perm of role.permissions; track perm.id) {
+                    <span class="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-primary">{{ perm.name }}</span>
+                  }
+                </div>
+              } @else {
+                <span class="text-gray-400">—</span>
+              }
+            </td>
+            <td>
+              <div class="admin-table-actions">
+                @if (authService.hasPermission('ROLES_UPDATE')) {
+                  <button (click)="startEdit(role)" class="admin-table-action-button">Editar</button>
+                }
+                @if (authService.hasPermission('ROLES_DELETE')) {
+                  <button (click)="rolesService.remove(role.id)" class="admin-table-action-danger">Eliminar</button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="admin-table-empty">No se encontraron roles</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-table>
+</div>
+
+@if (showCreateModal()) {
+  <app-form-modal title="Nuevo rol" (close)="cancelCreate()">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+          <input [(ngModel)]="formData.name" name="name" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Nombre del rol" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+          <input [(ngModel)]="formData.description" name="description" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Descripción opcional" />
+        </div>
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-gray-700">Permisos</label>
+        <div class="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-gray-200 p-3 md:grid-cols-2 lg:grid-cols-3">
+          @for (permission of permissions(); track permission.id) {
+            <label class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                [checked]="isCreatePermissionSelected(permission.id)"
+                (change)="toggleCreatePermission(permission.id, $any($event.target).checked)"
+                class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              />
+              {{ permission.name }}
+            </label>
+          }
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" (click)="cancelCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (showEditModal()) {
+  <app-form-modal title="Editar rol" widthClass="max-w-xl" (close)="requestCancelEdit()">
+    <form (ngSubmit)="requestSave()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+          <input [(ngModel)]="editFormData.name" name="editRoleName" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+          <input [(ngModel)]="editFormData.description" name="editRoleDescription" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+      </div>
+
+      <div>
+        <label class="mb-2 block text-sm font-medium text-gray-700">Permisos</label>
+        <div class="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-2 lg:grid-cols-3">
+          @for (permission of permissions(); track permission.id) {
+            <label class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                [checked]="isEditPermissionSelected(permission.id)"
+                (change)="toggleEditPermission(permission.id, $any($event.target).checked)"
+                class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              />
+              {{ permission.name }}
+            </label>
+          }
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+        <button type="button" (click)="requestCancelEdit()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (confirmAction()) {
+  <app-confirm-dialog
+    [title]="confirmAction() === 'save' ? 'Guardar cambios' : 'Cancelar edición'"
+    [message]="confirmAction() === 'save' ? '¿Estás seguro de guardar los cambios?' : '¿Estás seguro de cancelar? Los cambios no guardados se perderán.'"
+    [confirmLabel]="confirmAction() === 'save' ? 'Guardar' : 'Cancelar edición'"
+    [confirmDanger]="confirmAction() === 'cancel'"
+    (confirm)="handleConfirm()"
+    (cancel)="handleDismiss()"
+  />
+}

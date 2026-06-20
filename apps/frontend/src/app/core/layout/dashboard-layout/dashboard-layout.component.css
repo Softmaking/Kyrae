@@ -1,0 +1,17 @@
+:host {
+  display: block;
+}
+
+.admin-layout-content {
+  transition: padding-left 300ms ease-in-out;
+}
+
+@media (min-width: 1024px) {
+  .admin-layout-content {
+    padding-left: 18rem;
+  }
+
+  .admin-layout-content-collapsed {
+    padding-left: 6rem;
+  }
+}

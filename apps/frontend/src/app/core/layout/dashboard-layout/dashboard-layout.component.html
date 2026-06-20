@@ -1,0 +1,21 @@
+<div class="min-h-screen bg-slate-50 text-slate-900">
+  <app-sidenav
+    [collapsed]="sidebarCollapsed()"
+    [mobileOpen]="mobileMenuOpen()"
+    (mobileClose)="closeMobileMenu()"
+  />
+
+  <div class="admin-layout-content min-h-screen" [class.admin-layout-content-collapsed]="sidebarCollapsed()">
+    <app-navbar
+      [sidebarCollapsed]="sidebarCollapsed()"
+      (sidebarToggle)="toggleSidebar()"
+      (mobileMenuToggle)="toggleMobileMenu()"
+    />
+
+    <main class="px-4 pb-8 pt-24 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-7xl">
+        <router-outlet />
+      </div>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,97 @@
+@if (loading()) {
+  <p class="text-gray-500">Cargando...</p>
+} @else {
+  <div class="admin-table-card">
+    <div class="admin-table-card-header">
+      <div class="flex flex-col gap-1">
+        <h2 class="admin-table-title">{{ title() }}</h2>
+        @if (subtitle(); as sub) {
+          <p class="admin-table-meta">{{ sub }}</p>
+        }
+      </div>
+      <ng-content select="[header-actions]" />
+    </div>
+    <div class="admin-table-shell">
+      <div class="admin-table-toolbar">
+        <label class="admin-table-page-size">
+          <span>Mostrar</span>
+          <select
+            [ngModel]="pageSize()"
+            (ngModelChange)="onPageSizeChange($event)"
+            class="admin-table-select"
+            aria-label="Registros por pagina"
+          >
+            @for (option of pageSizeOptions(); track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
+          <span>registros</span>
+        </label>
+
+        <div class="relative">
+          <span class="admin-table-search-icon">⌕</span>
+          <input
+            [ngModel]="searchTerm()"
+            (ngModelChange)="onSearchChange($event)"
+            class="admin-table-search"
+            placeholder="Buscar..."
+            aria-label="Buscar"
+          />
+        </div>
+      </div>
+
+      <div class="admin-table-wrapper">
+        <div class="admin-table-scroll">
+          <ng-content />
+        </div>
+      </div>
+
+      <div class="admin-table-footer">
+        @if (paginationMode() === 'cursor') {
+          <p>{{ total() }} registros cargados</p>
+          <div class="admin-table-pagination" aria-label="Paginación">
+            <button
+              (click)="onLoadMore()"
+              [disabled]="!hasMore() || loadingMore()"
+              class="admin-table-page-button"
+            >
+              @if (loadingMore()) {
+                Cargando...
+              } @else if (hasMore()) {
+                Cargar más
+              } @else {
+                Fin de resultados
+              }
+            </button>
+          </div>
+        } @else {
+          <p>Mostrando {{ startIndex() }} a {{ endIndex() }} de {{ total() }} registros</p>
+          <div class="admin-table-pagination" aria-label="Paginación">
+            <button
+              (click)="goToPage(currentPage() - 1)"
+              [disabled]="currentPage() === 1"
+              class="admin-table-page-button"
+            >
+              Anterior
+            </button>
+            @for (page of pageNumbers(); track page) {
+              <button
+                (click)="goToPage(page)"
+                [class]="page === currentPage() ? 'admin-table-page-button-active' : 'admin-table-page-button'"
+              >
+                {{ page }}
+              </button>
+            }
+            <button
+              (click)="goToPage(currentPage() + 1)"
+              [disabled]="currentPage() === totalPages()"
+              class="admin-table-page-button"
+            >
+              Siguiente
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

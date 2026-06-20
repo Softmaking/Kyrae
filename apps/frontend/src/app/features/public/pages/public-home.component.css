@@ -1,0 +1,140 @@
+.site-navbar-solid {
+  background-color: rgba(31, 41, 55, 0.95);
+  backdrop-filter: blur(4px);
+}
+
+#inicio,
+#clients,
+#about,
+#services,
+#contact,
+#rrss {
+  scroll-margin-top: 6rem;
+}
+
+.section-title {
+  margin-bottom: 0.75rem;
+  background-image: linear-gradient(to bottom, #4299e1, #2b6cb0);
+  background-clip: text;
+  padding-bottom: 0.75rem;
+  text-align: center;
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+  color: transparent;
+}
+
+.hero-copy,
+.hero-image {
+  animation: rise-in 0.9s ease-out both;
+}
+
+.hero-copy h1,
+.hero-copy p,
+.hero-copy a {
+  animation: rise-in 0.9s ease-out both;
+}
+
+.hero-copy p {
+  animation-delay: 0.15s;
+}
+
+.hero-copy a {
+  animation-delay: 0.3s;
+}
+
+.animate-zoominout {
+  animation: zoom-in-out 30s ease-in-out infinite alternate;
+}
+
+.reveal-up,
+.reveal-left,
+.reveal-scale {
+  opacity: 0;
+  transition-duration: 1.25s;
+  transition-property: opacity, transform;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-up {
+  transform: translateY(28px);
+}
+
+.reveal-left {
+  transform: translateX(-48px);
+}
+
+.reveal-scale {
+  transform: translateY(24px) scale(0.94);
+  transition-duration: 1.45s;
+}
+
+.reveal-up.is-visible,
+.reveal-left.is-visible,
+.reveal-scale.is-visible {
+  opacity: 1;
+  transform: translate(0, 0) scale(1);
+}
+
+@media (min-width: 768px) {
+  .site-navbar:not(.site-navbar-solid) {
+    background-color: transparent;
+  }
+
+  .section-title {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy,
+  .hero-image,
+  .hero-copy h1,
+  .hero-copy p,
+  .hero-copy a,
+  .animate-zoominout,
+  .reveal-up,
+  .reveal-left,
+  .reveal-scale {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes zoom-in-out {
+  from {
+    transform: scale(1.1);
+  }
+
+  to {
+    transform: scale(1.2);
+  }
+}

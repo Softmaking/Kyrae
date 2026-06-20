@@ -1,0 +1,219 @@
+<div class="p-6">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Configuracion</h1>
+    @if (authService.hasPermission('CONFIGURATION_CREATE')) {
+      <button (click)="showCreateModal.set(true)" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover">
+        Nueva configuracion
+      </button>
+    }
+  </div>
+
+  <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-5">
+    <div class="mb-4 flex flex-col gap-1">
+      <h2 class="text-base font-medium text-gray-800">Filtros</h2>
+      <p class="text-sm text-gray-500">Filtra por categoria y estado de activacion.</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Categoria</label>
+        <input
+          [ngModel]="selectedCategory()"
+          (ngModelChange)="onCategoryFilterChange($event)"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder="app, security, auth..."
+        />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Estado</label>
+        <select
+          [ngModel]="selectedState()"
+          (ngModelChange)="onStateFilterChange($event)"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+        >
+          <option value="all">Todos</option>
+          <option value="active">Activos</option>
+          <option value="inactive">Inactivos</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <app-table
+    title="Listado de configuraciones"
+    [total]="configurationService.total()"
+    [pageSize]="pageSize()"
+    [currentPage]="currentPage()"
+    [searchTerm]="searchTerm()"
+    [loading]="configurationService.loading()"
+    emptyMessage="No se encontraron configuraciones"
+    (pageChange)="goToPage($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (searchChange)="onSearchChange($event)"
+  >
+    <div header-actions>
+      <p class="admin-table-meta">Total: {{ configurationService.total() }} configuraciones</p>
+    </div>
+
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Valor</th>
+          <th>Categoria</th>
+          <th>Estado</th>
+          <th>Actualizado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (config of configurationService.configs(); track config.id) {
+          <tr>
+            <td><span class="admin-table-code">{{ config.key }}</span></td>
+            <td class="font-mono text-xs text-gray-700">{{ displayValue(config.value) }}</td>
+            <td>{{ config.category || '-' }}</td>
+            <td>
+              <span [class]="config.isActive ? 'admin-table-status-active' : 'admin-table-status-inactive'">
+                {{ config.isActive ? 'Activa' : 'Inactiva' }}
+              </span>
+            </td>
+            <td class="text-sm text-gray-500">{{ formatDate(config.updatedAt) }}</td>
+            <td>
+              <div class="admin-table-actions">
+                @if (authService.hasPermission('CONFIGURATION_UPDATE')) {
+                  <button (click)="startEdit(config)" class="admin-table-action-button">Editar</button>
+                  <button (click)="onToggleActive(config)" class="admin-table-action-button">
+                    {{ config.isActive ? 'Desactivar' : 'Activar' }}
+                  </button>
+                }
+                @if (authService.hasPermission('CONFIGURATION_DELETE')) {
+                  <button (click)="onRemove(config)" class="admin-table-action-danger">Eliminar</button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="admin-table-empty">No se encontraron configuraciones</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-table>
+</div>
+
+@if (showCreateModal()) {
+  <app-form-modal title="Nueva configuracion" (close)="cancelCreate()">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Key</label>
+          <input
+            [(ngModel)]="formData.key"
+            name="key"
+            required
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+            placeholder="app.name"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Categoria</label>
+          <input
+            [(ngModel)]="formData.category"
+            name="category"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+            placeholder="app"
+          />
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Valor (JSON o texto)</label>
+        <textarea
+          [(ngModel)]="formValueText"
+          name="value"
+          rows="4"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder='"Kyrae" o {"maintenance": false}'
+        ></textarea>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Descripcion</label>
+        <input
+          [(ngModel)]="formData.description"
+          name="description"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder="Descripcion opcional"
+        />
+      </div>
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+        <input [(ngModel)]="formData.isActive" name="isActive" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20" />
+        Activa
+      </label>
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          [disabled]="saving"
+          class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50"
+        >
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" (click)="cancelCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (showEditModal() && editFormData; as edit) {
+  <app-form-modal title="Editar configuracion" (close)="requestCancelEdit()">
+    <form (ngSubmit)="requestSave()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Key</label>
+          <input [(ngModel)]="edit.key" name="edit-key" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Categoria</label>
+          <input [(ngModel)]="edit.category" name="edit-category" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Valor (JSON o texto)</label>
+        <textarea
+          [(ngModel)]="edit.valueText"
+          name="edit-value"
+          rows="4"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+        ></textarea>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Descripcion</label>
+        <input [(ngModel)]="edit.description" name="edit-description" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+        <input [(ngModel)]="edit.isActive" name="edit-active" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20" />
+        Activa
+      </label>
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          [disabled]="saving"
+          class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50"
+        >
+          {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+        <button type="button" (click)="requestCancelEdit()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (confirmAction()) {
+  <app-confirm-dialog
+    [title]="confirmAction() === 'save' ? 'Guardar cambios' : 'Cancelar edición'"
+    [message]="confirmAction() === 'save' ? '¿Estás seguro de guardar los cambios?' : '¿Estás seguro de cancelar? Los cambios no guardados se perderán.'"
+    [confirmLabel]="confirmAction() === 'save' ? 'Guardar' : 'Cancelar edición'"
+    [confirmDanger]="confirmAction() === 'cancel'"
+    (confirm)="handleConfirm()"
+    (cancel)="handleDismiss()"
+  />
+}

@@ -1,0 +1,156 @@
+<div class="p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Sucursales</h1>
+    @if (authService.hasPermission('BRANCHES_CREATE')) {
+      <button (click)="showCreateModal.set(true)" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover">
+        Nueva sucursal
+      </button>
+    }
+  </div>
+
+  <app-table
+    title="Listado de sucursales"
+    [total]="filteredBranches().length"
+    [pageSize]="pageSize()"
+    [currentPage]="currentPage()"
+    [searchTerm]="searchTerm()"
+    [loading]="branchService.loading()"
+    (pageChange)="goToPage($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (searchChange)="onSearchChange($event)"
+  >
+    <div header-actions>
+      <p class="admin-table-meta">{{ filteredBranches().length }} registros</p>
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Organización</th>
+          <th>Estado</th>
+          <th>Creación</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (branch of paginatedBranches(); track branch.id) {
+          <tr>
+            <td><span class="admin-table-code">{{ branch.code }}</span></td>
+            <td class="font-medium text-gray-800">{{ branch.name }}</td>
+            <td>{{ branch.organization?.name || branch.organizationId }}</td>
+            <td>
+              <span [class]="branch.isActive ? 'admin-table-status-active' : 'admin-table-status-inactive'">
+                {{ branch.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-sm text-gray-500">{{ formatDate(branch.createdAt) }}</td>
+            <td>
+              <div class="admin-table-actions">
+                @if (authService.hasPermission('BRANCHES_UPDATE')) {
+                  <button (click)="startEdit(branch)" class="admin-table-action-button">Editar</button>
+                  <button (click)="onToggleActive(branch)" class="admin-table-action-button">
+                    {{ branch.isActive ? 'Desactivar' : 'Activar' }}
+                  </button>
+                  <button (click)="openUserModal(branch)" class="admin-table-action-button">Usuarios</button>
+                }
+                @if (authService.hasPermission('BRANCHES_DELETE')) {
+                  <button (click)="branchService.remove(branch.id)" class="admin-table-action-danger">Eliminar</button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="admin-table-empty">No se encontraron sucursales</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-table>
+
+  @if (showUserModal()) {
+    <app-user-assignment-modal
+      title="Usuarios de la sucursal"
+      [assignedUsers]="assignedBranchUsers()"
+      [availableUsers]="usersService.users().map(u => ({ id: u.id, email: u.email, fullName: u.fullName, isActive: u.isActive }))"
+      (add)="onAddBranchUser($event)"
+      (remove)="onRemoveBranchUser($event)"
+      (close)="showUserModal.set(false)"
+    />
+  }
+</div>
+
+@if (showCreateModal()) {
+  <app-form-modal title="Nueva sucursal" (close)="cancelCreate()">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Organización</label>
+          <select [(ngModel)]="formData.organizationId" name="organizationId" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10">
+            <option value="">Selecciona una organización</option>
+            @for (org of organizations(); track org.id) {
+              <option [value]="org.id">{{ org.name }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Código</label>
+          <input [(ngModel)]="formData.code" name="code" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="SUC-001" />
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+        <input [(ngModel)]="formData.name" name="name" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Nombre de la sucursal" />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+        <input [(ngModel)]="formData.description" name="description" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Descripción opcional" />
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" (click)="cancelCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (showEditModal()) {
+  <app-form-modal title="Editar sucursal" (close)="requestCancelEdit()">
+    <form (ngSubmit)="requestSave()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Código</label>
+          <input [(ngModel)]="editFormData.code" name="edit-code" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+          <input [(ngModel)]="editFormData.name" name="edit-name" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+        <input [(ngModel)]="editFormData.description" name="edit-description" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+        <button type="button" (click)="requestCancelEdit()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (confirmAction()) {
+  <app-confirm-dialog
+    [title]="confirmAction() === 'save' ? 'Guardar cambios' : 'Cancelar edición'"
+    [message]="confirmAction() === 'save' ? '¿Estás seguro de guardar los cambios?' : '¿Estás seguro de cancelar? Los cambios no guardados se perderán.'"
+    [confirmLabel]="confirmAction() === 'save' ? 'Guardar' : 'Cancelar edición'"
+    [confirmDanger]="confirmAction() === 'cancel'"
+    (confirm)="handleConfirm()"
+    (cancel)="handleDismiss()"
+  />
+}

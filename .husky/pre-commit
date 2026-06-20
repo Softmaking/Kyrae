@@ -1,0 +1,3 @@
+#!/bin/sh
+pnpm --dir apps/frontend lint
+pnpm --dir apps/backend lint

@@ -1,0 +1,247 @@
+<div class="p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Usuarios</h1>
+    @if (authService.hasPermission('USERS_CREATE')) {
+      <button (click)="showCreateModal.set(true)" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover">
+        Nuevo usuario
+      </button>
+    }
+  </div>
+
+  <app-table
+    title="Listado de usuarios"
+    [total]="filteredUsers().length"
+    [pageSize]="pageSize()"
+    [currentPage]="currentPage()"
+    [searchTerm]="searchTerm()"
+    [loading]="usersService.loading()"
+    (pageChange)="goToPage($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (searchChange)="onSearchChange($event)"
+  >
+    <div header-actions>
+      <p class="admin-table-meta">{{ filteredUsers().length }} registros</p>
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Nombres</th>
+          <th>Apellidos</th>
+          <th>RUT</th>
+          <th>Roles</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (user of paginatedUsers(); track user.id) {
+          <tr>
+            <td><span class="admin-table-code">{{ user.email }}</span></td>
+            <td class="font-medium text-gray-800">{{ user.firstName }}</td>
+            <td class="text-gray-800">{{ user.firstSurname }}{{ user.secondSurname ? ' ' + user.secondSurname : '' }}</td>
+            <td><span class="text-sm text-gray-600">{{ user.rut ?? '—' }}</span></td>
+            <td>
+              @if (user.roles.length) {
+                <div class="flex flex-wrap gap-1">
+                  @for (role of user.roles; track role.id) {
+                    <span class="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-primary">{{ role.name }}</span>
+                  }
+                </div>
+              } @else {
+                <span class="text-gray-400">—</span>
+              }
+              @if (effectivePermissionsFor(user).length) {
+                <div class="mt-2 flex flex-wrap gap-1">
+                  @for (permission of effectivePermissionsFor(user); track permission) {
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ permission }}</span>
+                  }
+                </div>
+              }
+            </td>
+            <td>
+              <span [class]="user.isActive ? 'admin-table-status-active' : 'admin-table-status-inactive'">
+                {{ user.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td>
+              <div class="admin-table-actions">
+                @if (authService.hasPermission('USERS_UPDATE')) {
+                  <button (click)="startEdit(user)" class="admin-table-action-button">Editar</button>
+                }
+                @if (authService.hasPermission('USERS_DELETE')) {
+                  <button (click)="usersService.remove(user.id)" class="admin-table-action-danger">Eliminar</button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="admin-table-empty">No se encontraron usuarios</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-table>
+</div>
+
+@if (showCreateModal()) {
+  <app-form-modal title="Nuevo usuario" (close)="cancelCreate()">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Email</label>
+          <input [(ngModel)]="formData.email" name="email" type="email" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="correo@ejemplo.com" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombres</label>
+          <input [(ngModel)]="formData.firstName" name="firstName" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Juan Pablo" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Primer apellido</label>
+          <input [(ngModel)]="formData.firstSurname" name="firstSurname" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="González" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Segundo apellido</label>
+          <input [(ngModel)]="formData.secondSurname" name="secondSurname" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="López (opcional)" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">RUT</label>
+          <input [(ngModel)]="formData.rut" name="rut" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="12.345.678-9 (opcional)" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Contraseña</label>
+          <input [(ngModel)]="formData.password" name="password" type="password" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Contraseña" />
+        </div>
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-gray-700">Roles</label>
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+          @for (role of roles(); track role.id) {
+            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                [checked]="isCreateRoleSelected(role.id)"
+                (change)="toggleCreateRole(role.id, $any($event.target).checked)"
+                class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              />
+              {{ role.name }}
+            </label>
+          }
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" (click)="cancelCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (showEditModal()) {
+  <app-form-modal title="Editar usuario" widthClass="max-w-2xl" (close)="requestCancelEdit()">
+    <form (ngSubmit)="requestSave()" class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Email</label>
+          <input [(ngModel)]="editFormData.email" name="editEmail" type="email" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nombres</label>
+          <input [(ngModel)]="editFormData.firstName" name="editFirstName" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Primer apellido</label>
+          <input [(ngModel)]="editFormData.firstSurname" name="editFirstSurname" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Segundo apellido</label>
+          <input [(ngModel)]="editFormData.secondSurname" name="editSecondSurname" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Opcional" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">RUT</label>
+          <input [(ngModel)]="editFormData.rut" name="editRut" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="12.345.678-9" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nueva contraseña</label>
+          <input [(ngModel)]="editFormData.password" name="editPassword" type="password" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" placeholder="Dejar vacía para conservar" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Estado</label>
+          <select [(ngModel)]="editFormData.isActive" name="editIsActive" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10">
+            <option [ngValue]="true">Activo</option>
+            <option [ngValue]="false">Inactivo</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Organización</label>
+          <select [(ngModel)]="editFormData.organizationId" name="editOrganizationId" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10">
+            <option value="">Sin cambio</option>
+            @for (organization of organizations(); track organization.id) {
+              <option [value]="organization.id">{{ organization.name }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Sucursal</label>
+          <select [(ngModel)]="editFormData.branchId" name="editBranchId" [disabled]="!editFormData.organizationId" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10 disabled:opacity-50 disabled:cursor-not-allowed">
+            <option value="">Sin cambio</option>
+            @for (branch of branchesForEdit(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }} · {{ branch.organization?.name || branch.organizationId }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="mb-2 block text-sm font-medium text-gray-700">Roles</label>
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+          @for (role of roles(); track role.id) {
+            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                [checked]="isEditRoleSelected(role.id)"
+                (change)="toggleEditRole(role.id, $any($event.target).checked)"
+                class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              />
+              {{ role.name }}
+            </label>
+          }
+        </div>
+      </div>
+
+      <div>
+        <p class="mb-2 text-sm font-medium text-gray-700">Permisos efectivos</p>
+        @if (effectiveEditPermissions().length) {
+          <div class="flex flex-wrap gap-1">
+            @for (permission of effectiveEditPermissions(); track permission) {
+              <span class="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-brand-primary ring-1 ring-brand-primary/15">{{ permission }}</span>
+            }
+          </div>
+        } @else {
+          <span class="text-sm text-gray-400">Sin permisos por roles</span>
+        }
+      </div>
+
+      <div class="flex gap-2">
+        <button type="submit" [disabled]="saving" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50">
+          {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+        <button type="button" (click)="requestCancelEdit()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (confirmAction()) {
+  <app-confirm-dialog
+    [title]="confirmAction() === 'save' ? 'Guardar cambios' : 'Cancelar edición'"
+    [message]="confirmAction() === 'save' ? '¿Estás seguro de guardar los cambios?' : '¿Estás seguro de cancelar? Los cambios no guardados se perderán.'"
+    [confirmLabel]="confirmAction() === 'save' ? 'Guardar' : 'Cancelar edición'"
+    [confirmDanger]="confirmAction() === 'cancel'"
+    (confirm)="handleConfirm()"
+    (cancel)="handleDismiss()"
+  />
+}

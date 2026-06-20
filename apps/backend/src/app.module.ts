@@ -1,0 +1,32 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
+import { BranchesModule } from './branches/branches.module';
+import { HealthModule } from './health/health.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { ConfigurationModule } from './configuration/configuration.module';
+import { RolesModule } from './roles/roles.module';
+import { SecurityModule } from './security/security.module';
+import { UsersModule } from './users/users.module';
+import { typeOrmConfig } from './database/typeorm.config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync(typeOrmConfig),
+    HealthModule,
+    AuthModule,
+    UsersModule,
+    RolesModule,
+    PermissionsModule,
+    ConfigurationModule,
+    AuditModule,
+    OrganizationsModule,
+    BranchesModule,
+    SecurityModule,
+  ],
+})
+export class AppModule {}

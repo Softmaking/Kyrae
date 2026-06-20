@@ -1,0 +1,17 @@
+:host {
+  display: contents;
+}
+
+.admin-navbar {
+  transition: left 300ms ease-in-out;
+}
+
+@media (min-width: 1024px) {
+  .admin-navbar {
+    left: 18rem;
+  }
+
+  .admin-navbar-collapsed {
+    left: 6rem;
+  }
+}

@@ -1,0 +1,140 @@
+<main class="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-100/50 text-gray-800">
+  <div class="pointer-events-none absolute -left-28 top-24 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl"></div>
+  <div class="pointer-events-none absolute -right-24 bottom-12 h-80 w-80 rounded-full bg-blue-700/10 blur-3xl"></div>
+
+  <header id="navbar" class="fixed z-50 w-full bg-gray-800/90 shadow-sm backdrop-blur-sm md:px-6 md:py-5">
+    <nav class="relative flex items-center justify-between py-5 pl-2 pr-3 sm:h-10 xl:justify-around">
+      <div class="flex flex-1 items-center lg:flex-none">
+        <div class="flex w-full items-center justify-between md:w-auto">
+          <a routerLink="/" aria-label="Home" class="flex flex-row items-center" (click)="closeMenu()">
+            <img class="block h-8 w-auto" src="/assets/img/app-img/logo-sm.png" alt="Logo de Kyrae" />
+            <span class="ml-2 bg-gradient-to-b from-blue-300 via-blue-600 to-blue-900 bg-clip-text text-center text-2xl font-bold uppercase text-transparent">
+              Kyrae
+            </span>
+          </a>
+
+          <div class="flex items-center md:hidden">
+            <button
+              id="main-menu"
+              type="button"
+              aria-label="Menu principal"
+              aria-haspopup="true"
+              [attr.aria-expanded]="menuOpen()"
+              class="inline-flex items-center justify-center rounded-md p-2 text-gray-300 transition duration-150 ease-linear hover:bg-gray-50/20 hover:text-white focus:bg-gray-100 focus:text-gray-700 focus:outline-none"
+              (click)="toggleMenu()"
+            >
+              <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hidden items-center md:ml-4 md:flex md:pr-2">
+        <a routerLink="/" fragment="inicio" class="ml-2 font-bold text-gray-300 transition duration-150 ease-in-out hover:text-white">Inicio</a>
+        <a routerLink="/" fragment="clients" class="ml-2 font-bold text-gray-300 transition duration-150 ease-in-out hover:text-white">Clientes</a>
+        <a routerLink="/" fragment="about" class="ml-2 font-bold text-gray-300 transition duration-150 ease-in-out hover:text-white">Acerca de</a>
+        <a routerLink="/" fragment="services" class="ml-2 font-bold text-gray-300 transition duration-150 ease-in-out hover:text-white">Servicios</a>
+        <a routerLink="/" fragment="contact" class="ml-2 font-bold text-gray-300 transition duration-150 ease-in-out hover:text-white">Contacto</a>
+      </div>
+    </nav>
+
+    @if (menuOpen()) {
+      <div id="nav-content" class="md:hidden">
+        <div class="px-2 pb-3 pt-2">
+          <a routerLink="/" fragment="clients" class="mt-1 block rounded-md px-3 py-2 text-base font-medium text-gray-100 transition duration-150 ease-in-out hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none" (click)="closeMenu()">Clientes</a>
+          <a routerLink="/" fragment="about" class="mt-1 block rounded-md px-3 py-2 text-base font-medium text-gray-100 transition duration-150 ease-in-out hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none" (click)="closeMenu()">Acerca de</a>
+          <a routerLink="/" fragment="services" class="mt-1 block rounded-md px-3 py-2 text-base font-medium text-gray-100 transition duration-150 ease-in-out hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none" (click)="closeMenu()">Servicios</a>
+          <a routerLink="/" fragment="contact" class="mt-1 block rounded-md px-3 py-2 text-base font-medium text-gray-100 transition duration-150 ease-in-out hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none" (click)="closeMenu()">Contacto</a>
+        </div>
+      </div>
+    }
+  </header>
+
+  <section class="relative z-10 flex min-h-screen w-full items-center justify-center px-5 py-28 md:px-8 lg:py-24">
+    <div class="login-shell grid w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-gray-900/5 lg:grid-cols-[1.03fr_0.97fr]">
+      <aside class="login-visual relative hidden min-h-[620px] overflow-hidden bg-gray-800 lg:block">
+        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('/assets/img/app-img/login-bg.jpg')"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-gray-900/70 via-gray-900/30 to-blue-900/30"></div>
+        <div class="absolute inset-x-0 bottom-0 p-10 text-white">
+          <p class="text-sm font-semibold uppercase tracking-[0.32em] text-blue-200">Kyrae</p>
+          <h2 class="mt-3 text-3xl font-bold leading-tight">Tu asistente inteligente, siempre disponible.</h2>
+          <p class="mt-4 max-w-sm text-sm leading-6 text-gray-200">
+            Accede a las herramientas internas para administrar tu espacio de trabajo de forma segura.
+          </p>
+        </div>
+      </aside>
+
+      <section class="login-panel relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-14">
+        <div class="mx-auto max-w-md">
+          <div class="mb-8 text-center lg:text-left">
+            <p class="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">Bienvenido</p>
+            <h1 class="mt-3 text-3xl font-semibold tracking-tight text-gray-900">Iniciar Sesión</h1>
+            <p class="mt-2 text-sm leading-6 text-gray-500">Ingresa tus credenciales para continuar.</p>
+          </div>
+
+          <form class="space-y-5" [formGroup]="form" (ngSubmit)="submit()">
+            <div>
+              <label class="mb-2 block text-sm font-bold text-gray-700" for="email">Correo electrónico</label>
+              <input
+                id="email"
+                class="login-input"
+                type="email"
+                formControlName="email"
+                autocomplete="email"
+                autofocus
+              />
+              @if (form.controls['email'].touched && form.controls['email'].invalid) {
+                <p class="mt-2 text-sm text-red-700">Ingresa un correo electrónico válido.</p>
+              }
+            </div>
+
+            <div>
+              <label class="mb-2 block text-sm font-bold text-gray-700" for="password">Contraseña</label>
+              <input
+                id="password"
+                class="login-input"
+                [class.login-input-error]="error() || (form.controls['password'].touched && form.controls['password'].invalid)"
+                type="password"
+                formControlName="password"
+                autocomplete="current-password"
+              />
+              @if (form.controls['password'].touched && form.controls['password'].invalid) {
+                <p class="mt-2 text-sm text-red-700">La contraseña debe tener al menos 8 caracteres.</p>
+              }
+              @if (error()) {
+                <div class="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900" role="alert">
+                  <p class="text-sm">{{ error() }}</p>
+                </div>
+              }
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+              <label class="inline-flex items-center text-sm text-gray-600" for="remember">
+                <input class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-300" type="checkbox" name="remember" id="remember" />
+                Recuérdame
+              </label>
+            </div>
+
+            <button
+              class="login-submit"
+              type="submit"
+              [disabled]="loading()"
+            >
+              <span>{{ loading() ? 'Iniciando sesión...' : 'Iniciar Sesión' }}</span>
+            </button>
+
+            <div class="pt-2">
+              <hr class="border-gray-200" />
+              <div class="mt-5 grid gap-2 text-center text-sm">
+                <button class="font-medium text-blue-600 transition hover:text-blue-800" type="button">Registrarse</button>
+                <button class="font-medium text-blue-600 transition hover:text-blue-800" type="button">¿Olvidó su contraseña?</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  </section>
+</main>

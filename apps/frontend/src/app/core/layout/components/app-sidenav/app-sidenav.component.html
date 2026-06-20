@@ -1,0 +1,79 @@
+@if (mobileOpen) {
+  <button
+    type="button"
+    class="fixed inset-0 z-40 bg-slate-950/50 transition-opacity lg:hidden"
+    aria-label="Cerrar menu lateral"
+    (click)="mobileClose.emit()"
+  ></button>
+}
+
+<aside
+  class="fixed inset-y-0 left-0 z-50 flex w-72 -translate-x-full flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out lg:translate-x-0"
+  [class.translate-x-0]="mobileOpen"
+  [class.lg:w-24]="collapsed"
+  aria-label="Navegacion administrativa"
+>
+  <div class="flex h-20 items-center gap-3 border-b border-slate-100 px-5" [class.justify-center]="collapsed">
+    <img class="h-10 w-10 shrink-0 object-contain" [src]="logoUrl" alt="Logo de Kyrae" />
+    @if (!collapsed) {
+      <div class="min-w-0">
+        <p class="truncate bg-gradient-to-b from-blue-300 via-blue-600 to-blue-900 bg-clip-text text-xl font-bold uppercase text-transparent">Kyrae</p>
+        <p class="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">Assistant</p>
+      </div>
+    }
+  </div>
+
+  <div class="flex-1 overflow-y-auto px-3 py-5">
+    @for (section of menuSections(); track section.label) {
+      <section class="mb-6">
+        @if (!collapsed) {
+          <h2 class="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{{ section.label }}</h2>
+        }
+
+        <nav class="space-y-1">
+          @for (item of section.items; track item.route) {
+            <a
+              [routerLink]="item.route"
+              routerLinkActive="sidenav-link-active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              class="sidenav-link group"
+              [class.justify-center]="collapsed"
+              [attr.aria-label]="collapsed ? item.label : null"
+              [title]="collapsed ? item.label : ''"
+              (click)="mobileClose.emit()"
+            >
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="iconPath(item.icon)" />
+              </svg>
+
+              @if (!collapsed) {
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold">{{ item.label }}</span>
+                  <span class="block truncate text-xs text-slate-400 transition group-hover:text-slate-500">{{ item.description }}</span>
+                </span>
+              }
+            </a>
+          }
+        </nav>
+      </section>
+    }
+  </div>
+
+  <div class="space-y-2 border-t border-slate-100 p-3">
+    <button
+      type="button"
+      class="flex w-full items-center gap-3 rounded-2xl border border-red-100 bg-red-50 px-3 py-3 text-sm font-semibold text-red-700 transition hover:border-red-200 hover:bg-red-100"
+      [class.justify-center]="collapsed"
+      [attr.aria-label]="collapsed ? 'Cerrar sesion' : null"
+      [title]="collapsed ? 'Cerrar sesion' : ''"
+      (click)="logout()"
+    >
+      <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6A2.25 2.25 0 0 0 5.25 5.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+      </svg>
+      @if (!collapsed) {
+        <span>Cerrar sesion</span>
+      }
+    </button>
+  </div>
+</aside>
