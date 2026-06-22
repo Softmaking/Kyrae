@@ -1,5 +1,6 @@
 export type AdminMenuIcon =
   | 'dashboard'
+  | 'assistant'
   | 'organizations'
   | 'branches'
   | 'users'
@@ -30,6 +31,13 @@ export const ADMIN_MENU: readonly AdminMenuSection[] = [
         route: '/dashboard',
         icon: 'dashboard',
         description: 'Resumen general del sistema',
+      },
+      {
+        label: 'Asistente',
+        route: '/assistant',
+        icon: 'assistant',
+        description: 'Chat web con OpenClaw',
+        requiredPermissions: ['ASSISTANT_CHAT_USE'],
       },
       {
         label: 'Organizaciones',

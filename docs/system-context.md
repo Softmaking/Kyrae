@@ -20,7 +20,7 @@ It includes:
 
 The IAM and security foundation must remain reusable. Unrelated business modules must not be added unless a specification explicitly requires them.
 
-`OpenClaw` and voice interaction are documented target capabilities only. No runtime assistant module, voice capture, speech-to-text, text-to-speech, or voice orchestration service is implemented yet.
+`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Voice interaction remains a documented target capability only. No voice capture, speech-to-text, text-to-speech, or voice orchestration service is implemented yet.
 
 ## Current Modules
 
@@ -34,6 +34,8 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - organizations
 - branches
 - configuration
+- messages
+- openclaw
 - health
 - security
 - database
@@ -51,6 +53,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - organizations
 - branches
 - configuration
+- assistant
 
 ### Mobile (Official Beta)
 
@@ -90,6 +93,7 @@ Current contract areas:
 - organizations
 - branches
 - configuration
+- openclaw
 - common
 
 ## Authentication
@@ -114,6 +118,26 @@ Prepared but not implemented:
 - MFA
 - OpenClaw agent runtime
 - voice interaction flows
+
+## OpenClaw Assistant Messaging
+
+Current implementation:
+
+- `/messages` accepts authenticated web text messages.
+- The endpoint requires `ASSISTANT_CHAT_USE`.
+- User and assistant messages are stored in PostgreSQL.
+- Conversations are stored in PostgreSQL.
+- The backend uses `OpenClawService` as the only OpenClaw adapter.
+- `OPENCLAW_MODE=mock` returns a deterministic local response.
+- `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
+
+Not implemented:
+
+- OpenClaw runtime inside this repository.
+- WebSocket streaming.
+- Voice input or output.
+- External messaging channels.
+- Agent task execution beyond adapter request/response.
 
 `AuthProvider` values:
 
@@ -155,6 +179,7 @@ Current domains:
 - ORGANIZATIONS
 - BRANCHES
 - CONFIGURATION
+- ASSISTANT
 
 Most domains use:
 
@@ -166,6 +191,10 @@ Most domains use:
 Audit currently exposes only:
 
 - `AUDIT_READ`
+
+Assistant currently exposes only:
+
+- `ASSISTANT_CHAT_USE`
 
 ## Organizations And Branches
 
@@ -256,6 +285,12 @@ Prepared but not active OAuth variables:
 - `MICROSOFT_CLIENT_ID`
 - `MICROSOFT_TENANT_ID`
 - `GOOGLE_CLIENT_ID`
+
+OpenClaw adapter variables:
+
+- `OPENCLAW_MODE`
+- `OPENCLAW_BASE_URL`
+- `OPENCLAW_TIMEOUT_MS`
 
 Frontend does not use runtime `NG_APP_*` variables. It uses Angular environment files.
 

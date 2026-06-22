@@ -40,7 +40,7 @@
               @if (role.permissions.length) {
                 <div class="flex flex-wrap gap-1">
                   @for (perm of role.permissions; track perm.id) {
-                    <span class="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-primary">{{ perm.name }}</span>
+                    <span class="rounded-lg bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-primary">{{ perm.name }}</span>
                   }
                 </div>
               } @else {

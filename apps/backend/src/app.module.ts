@@ -5,6 +5,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { BranchesModule } from './branches/branches.module';
 import { HealthModule } from './health/health.module';
+import { MessagesModule } from './messages/messages.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { ConfigurationModule } from './configuration/configuration.module';
@@ -26,6 +27,7 @@ import { typeOrmConfig } from './database/typeorm.config';
     AuditModule,
     OrganizationsModule,
     BranchesModule,
+    MessagesModule,
     SecurityModule,
   ],
 })

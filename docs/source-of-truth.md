@@ -68,12 +68,12 @@ Current official beta scope:
 - home (dashboard)
 - profile
 
-Documented target capabilities only:
+Documented target capabilities:
 
 - OpenClaw principal assistant agent
 - voice interaction
 
-No source code module is currently authoritative for OpenClaw or voice runtime behavior because these capabilities are not implemented yet.
+OpenClaw currently has a backend text-message adapter. Voice runtime behavior is not implemented yet.
 
 ## API Endpoints
 
@@ -86,6 +86,8 @@ Frontend API usage source of truth:
 - `apps/frontend/src/app/features/**/services/*.service.ts`
 
 Audit list pagination shape is defined in `packages/shared-contracts/src/audit/audit.contracts.ts` and implemented by `GET /audit-events`.
+
+Assistant message shape is defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /messages`.
 
 When changing an endpoint:
 
@@ -150,6 +152,22 @@ Frontend route protection source of truth:
 
 Documentation must not invent permissions not seeded or enforced.
 
+## OpenClaw Assistant Messaging
+
+Source of truth:
+
+- `packages/shared-contracts/src/openclaw/openclaw.contracts.ts`
+- `apps/backend/src/messages/`
+- `apps/backend/src/openclaw/`
+- `apps/frontend/src/app/features/assistant/`
+
+Rules:
+
+- Clients must call the Kyrae backend, not OpenClaw directly.
+- `POST /messages` is the current backend entrypoint for text messages.
+- `OpenClawService` is the current backend adapter for OpenClaw-compatible request/response behavior.
+- Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
+
 ## Environment Variables
 
 Backend source of truth:
@@ -167,6 +185,8 @@ Rules:
 - frontend must not contain secrets
 - frontend uses `apiBaseUrl`
 - runtime `NG_APP_*` variables are not used
+
+OpenClaw adapter environment variables are defined in `apps/backend/.env.example`.
 
 ## Database Schema
 
@@ -195,6 +215,7 @@ Seed defines:
 - default organization
 - default branch
 - default app configs
+- assistant chat permission
 
 ## Docker
 
