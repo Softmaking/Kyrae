@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -24,6 +25,7 @@ export class Conversation {
   title?: string | null;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
   user!: User;
 
   @OneToMany(() => Message, (message) => message.conversation)

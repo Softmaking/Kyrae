@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -33,6 +34,7 @@ export class Message {
   @ManyToOne(() => Conversation, (conversation) => conversation.messages, {
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'conversation_id' })
   conversation!: Conversation;
 
   @Index('idx_messages_created_at')

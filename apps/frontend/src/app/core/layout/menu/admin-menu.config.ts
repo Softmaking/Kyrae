@@ -36,7 +36,7 @@ export const ADMIN_MENU: readonly AdminMenuSection[] = [
         label: 'Asistente',
         route: '/assistant',
         icon: 'assistant',
-        description: 'Chat web con OpenClaw',
+        description: 'Chat web con el asistente',
         requiredPermissions: ['ASSISTANT_CHAT_USE'],
       },
       {

@@ -51,9 +51,9 @@ export class PublicHomeComponent implements AfterViewInit, OnDestroy {
 
   readonly services = signal([
     {
-      title: 'OpenClaw',
+      title: 'Motor de asistencia',
       description:
-        'Agente principal previsto para coordinar conversaciones, acciones y flujos de asistencia en la plataforma Kyrae.',
+        'Capa preparada para coordinar conversaciones, acciones y flujos de asistencia en la plataforma Kyrae.',
       variant: 'dark',
     },
     {
