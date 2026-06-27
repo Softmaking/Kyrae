@@ -1,4 +1,8 @@
-import type { AssistantChannel, AssistantMessageRole } from '@kyrae/shared-contracts';
+import type {
+  AssistantChannel,
+  AssistantMessageRole,
+  AssistantMessageStatus,
+} from '@kyrae/shared-contracts';
 import {
   Column,
   CreateDateColumn,
@@ -7,6 +11,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Conversation } from './conversation.entity';
 
@@ -25,6 +30,9 @@ export class Message {
   @Column({ type: 'text' })
   content!: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'completed' })
+  status!: AssistantMessageStatus;
+
   @Column({ type: 'varchar', length: 30, default: 'web' })
   channel!: AssistantChannel;
 
@@ -40,4 +48,7 @@ export class Message {
   @Index('idx_messages_created_at')
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
 }

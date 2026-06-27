@@ -18,6 +18,7 @@ class AssistantRemoteDataSource {
         ApiConstants.messages,
         data: <String, dynamic>{
           'message': message,
+          'sessionId': conversationId,
           'conversationId': conversationId,
           'channel': 'mobile',
         },
@@ -38,6 +39,7 @@ class AssistantRemoteDataSource {
         '${ApiConstants.messages}/tasks',
         data: <String, dynamic>{
           'message': message,
+          'sessionId': conversationId,
           'conversationId': conversationId,
           'channel': 'mobile',
         },

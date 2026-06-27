@@ -12,7 +12,7 @@ class AssistantMessageModel extends AssistantMessage {
   factory AssistantMessageModel.fromJson(Map<String, dynamic> json) {
     return AssistantMessageModel(
       id: json['id'] as String,
-      conversationId: json['conversationId'] as String,
+      conversationId: (json['sessionId'] ?? json['conversationId']) as String,
       role: _roleFromString(json['role'] as String),
       content: json['content'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -38,7 +38,7 @@ class SendAssistantMessageResultModel extends SendAssistantMessageResult {
 
   factory SendAssistantMessageResultModel.fromJson(Map<String, dynamic> json) {
     return SendAssistantMessageResultModel(
-      conversationId: json['conversationId'] as String,
+      conversationId: (json['sessionId'] ?? json['conversationId']) as String,
       userMessage: AssistantMessageModel.fromJson(
         json['userMessage'] as Map<String, dynamic>,
       ),
@@ -66,7 +66,7 @@ class AssistantMessageTaskModel extends AssistantMessageTask {
     return AssistantMessageTaskModel(
       id: json['id'] as String,
       status: _taskStatusFromString(json['status'] as String),
-      conversationId: json['conversationId'] as String,
+      conversationId: (json['sessionId'] ?? json['conversationId']) as String,
       userMessage: AssistantMessageModel.fromJson(
         json['userMessage'] as Map<String, dynamic>,
       ),

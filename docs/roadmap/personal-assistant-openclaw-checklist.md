@@ -112,6 +112,15 @@ Build a Jarvis-style personal assistant that supports text, voice, web, mobile, 
 - [ ] Add conversation history.
 - [ ] Add quick commands.
 
+## Stage 9.1: Persistent Assistant Sessions
+
+- [x] Expose assistant session list endpoint.
+- [x] Expose assistant session message history endpoint.
+- [x] Persist OpenClaw request and response traces.
+- [x] Keep session context between messages.
+- [x] Add web conversation list and history loading.
+- [ ] Rename internal `conversations` table to `sessions` in a future refactor if still desired.
+
 ## Stage 10: Integrations
 
 - [ ] Integrate WhatsApp.

@@ -9,6 +9,10 @@ export class SendMessageDto implements SendAssistantMessageCommand {
 
   @IsOptional()
   @IsUUID('4')
+  sessionId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
   conversationId?: string;
 
   @IsOptional()

@@ -169,7 +169,11 @@ Rules:
 - `POST /messages` is the current backend entrypoint for text messages.
 - `POST /messages/tasks` is the current backend entrypoint for asynchronous text-message tasks.
 - `GET /messages/tasks/:id` is the current backend entrypoint for polling task status.
+- `GET /sessions` is the current backend entrypoint for assistant session lists and uses cursor pagination with a default limit of 10.
+- `GET /sessions/:id/messages` is the current backend entrypoint for persisted assistant message history.
 - `OpenClawService` is the current backend adapter for OpenClaw-compatible request/response behavior.
+- `sessionId` is the canonical API identifier for assistant context; `conversationId` remains a temporary compatibility alias.
+- `openclaw_requests` persists OpenClaw request payloads, response payloads, status, errors, and duration.
 - Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
 - Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.

@@ -125,9 +125,13 @@ Current implementation:
 - `/messages` accepts authenticated web text messages.
 - `/messages/tasks` accepts authenticated asynchronous assistant text-message tasks.
 - `/messages/tasks/:id` returns task status and the assistant response when completed.
+- `/sessions` lists authenticated assistant sessions with cursor pagination and a default page size of 10.
+- `/sessions/:id/messages` returns the persisted message history for one owned assistant session.
 - The endpoint requires `ASSISTANT_CHAT_USE`.
 - User and assistant messages are stored in PostgreSQL.
 - Conversations are stored in PostgreSQL.
+- Public API uses `sessionId`; the current database implementation still uses `conversations` as the internal sessions table.
+- OpenClaw request/response traces are stored in PostgreSQL through `openclaw_requests`.
 - The backend uses `OpenClawService` as the only OpenClaw adapter.
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.

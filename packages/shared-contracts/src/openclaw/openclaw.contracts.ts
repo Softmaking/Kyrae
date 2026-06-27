@@ -2,23 +2,37 @@ export type AssistantChannel = 'web' | 'mobile' | 'whatsapp' | 'telegram' | 'loc
 
 export type AssistantMessageRole = 'user' | 'assistant' | 'system';
 
+export type AssistantMessageStatus = 'pending' | 'completed' | 'failed';
+
+export type AssistantSessionStatus = 'active' | 'completed' | 'failed' | 'archived';
+
+export type OpenClawRequestStatus = 'pending' | 'completed' | 'failed';
+
 export interface SendAssistantMessageCommand {
   message: string;
+  sessionId?: string;
+  /** @deprecated Use sessionId. */
   conversationId?: string;
   channel?: AssistantChannel;
 }
 
 export interface AssistantMessageDto {
   id: string;
+  sessionId: string;
+  /** @deprecated Use sessionId. */
   conversationId: string;
   role: AssistantMessageRole;
   content: string;
+  status: AssistantMessageStatus;
   channel: AssistantChannel;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface SendAssistantMessageResponse {
+  sessionId: string;
+  /** @deprecated Use sessionId. */
   conversationId: string;
   userMessage: AssistantMessageDto;
   assistantMessage: AssistantMessageDto;
@@ -30,6 +44,8 @@ export type AssistantTaskStatus = 'pending' | 'running' | 'completed' | 'failed'
 export interface AssistantMessageTaskDto {
   id: string;
   status: AssistantTaskStatus;
+  sessionId: string;
+  /** @deprecated Use sessionId. */
   conversationId: string;
   userMessage: AssistantMessageDto;
   assistantMessage: AssistantMessageDto | null;
@@ -37,6 +53,40 @@ export interface AssistantMessageTaskDto {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+}
+
+export interface AssistantSessionDto {
+  id: string;
+  title: string | null;
+  channel: AssistantChannel;
+  status: AssistantSessionStatus;
+  messageCount: number;
+  lastMessageAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListAssistantSessionsResponse {
+  sessions: AssistantSessionDto[];
+  nextCursor: string | null;
+}
+
+export interface ListAssistantSessionMessagesResponse {
+  session: AssistantSessionDto;
+  messages: AssistantMessageDto[];
+}
+
+export interface OpenClawRequestDto {
+  id: string;
+  sessionId: string;
+  messageId: string;
+  requestPayload: OpenClawRequest;
+  responsePayload: OpenClawResponse | null;
+  status: OpenClawRequestStatus;
+  errorMessage: string | null;
+  durationMs: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface OpenClawRequest {

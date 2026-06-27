@@ -7,6 +7,7 @@ import { AppConfig } from '../configuration/app-config.entity';
 import { Conversation } from '../messages/conversation.entity';
 import { AssistantMessageTask } from '../messages/assistant-message-task.entity';
 import { Message } from '../messages/message.entity';
+import { OpenClawRequestTrace } from '../messages/openclaw-request.entity';
 import { Organization } from '../organizations/organization.entity';
 import { UserOrganization } from '../organizations/user-organization.entity';
 import { Permission } from '../permissions/permission.entity';
@@ -36,6 +37,7 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
       Conversation,
       AssistantMessageTask,
       Message,
+      OpenClawRequestTrace,
     ],
     synchronize: false,
   }),
