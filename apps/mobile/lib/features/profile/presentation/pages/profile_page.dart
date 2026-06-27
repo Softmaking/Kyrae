@@ -29,7 +29,9 @@ class ProfilePage extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Text(user.email),
                       const SizedBox(height: 4),
-                      Text('${user.firstName} ${user.firstSurname}${user.secondSurname != null ? ' ${user.secondSurname}' : ''}'),
+                      Text(
+                        '${user.firstName} ${user.firstSurname}${user.secondSurname != null ? ' ${user.secondSurname}' : ''}',
+                      ),
                       const SizedBox(height: 8),
                       Text('Roles: ${user.roles.join(', ')}'),
                     ],

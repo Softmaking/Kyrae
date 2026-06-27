@@ -60,10 +60,10 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - auth (login, logout, me, refresh)
 - home (dashboard)
 - profile
+- assistant text chat
 
 Documented target capabilities, not implemented in mobile beta:
 
-- OpenClaw interaction
 - voice input
 - voice output
 
@@ -76,7 +76,6 @@ Out of scope for mobile beta:
 - organizations
 - branches
 - configuration
-- OpenClaw runtime features
 - voice features
 
 ### Shared Contracts
@@ -124,12 +123,15 @@ Prepared but not implemented:
 Current implementation:
 
 - `/messages` accepts authenticated web text messages.
+- `/messages/tasks` accepts authenticated asynchronous assistant text-message tasks.
+- `/messages/tasks/:id` returns task status and the assistant response when completed.
 - The endpoint requires `ASSISTANT_CHAT_USE`.
 - User and assistant messages are stored in PostgreSQL.
 - Conversations are stored in PostgreSQL.
 - The backend uses `OpenClawService` as the only OpenClaw adapter.
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
+- Mobile polls asynchronous assistant tasks and can show a local best-effort notification when a response completes while the app is not active.
 
 Not implemented:
 
@@ -138,6 +140,7 @@ Not implemented:
 - Voice input or output.
 - External messaging channels.
 - Agent task execution beyond adapter request/response.
+- Real push notifications through FCM/APNs for completed assistant tasks.
 
 `AuthProvider` values:
 
@@ -260,8 +263,8 @@ Frontend API base URL source:
 - mobile client lives in `apps/mobile`
 - mobile consumes backend APIs without bypassing auth/authorization rules
 - mobile refresh token flow is implemented; expired tokens are automatically refreshed via AuthInterceptor
-- beta scope is limited to auth, home (dashboard), and profile
-- OpenClaw and voice interaction are target capabilities only and must not be implemented without approved feature artifacts
+- beta scope includes auth, home (dashboard), profile, and assistant text chat
+- voice interaction remains a target capability only and must not be implemented without approved feature artifacts
 - mobile modules outside beta scope are intentionally not implemented yet
 
 ## Backend Rules

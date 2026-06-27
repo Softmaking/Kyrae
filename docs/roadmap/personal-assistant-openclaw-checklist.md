@@ -104,11 +104,11 @@ Build a Jarvis-style personal assistant that supports text, voice, web, mobile, 
 ## Stage 9: Mobile App
 
 - [x] Reuse existing Flutter mobile beta base.
-- [ ] Add mobile assistant chat.
-- [ ] Connect mobile chat with backend.
+- [x] Add mobile assistant chat.
+- [x] Connect mobile chat with backend.
 - [ ] Add mobile voice recording.
 - [ ] Add assistant response playback.
-- [ ] Add notifications.
+- [x] Add local best-effort notifications for completed async responses.
 - [ ] Add conversation history.
 - [ ] Add quick commands.
 

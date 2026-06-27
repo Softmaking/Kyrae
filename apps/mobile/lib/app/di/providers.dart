@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +8,15 @@ import 'package:kyrae_mobile/app/router/app_router.dart';
 import 'package:kyrae_mobile/core/constants/api_constants.dart';
 import 'package:kyrae_mobile/core/network/api_client.dart';
 import 'package:kyrae_mobile/core/network/auth_interceptor.dart';
+import 'package:kyrae_mobile/core/notifications/local_notification_service.dart';
 import 'package:kyrae_mobile/core/storage/secure_storage_service.dart';
+import 'package:kyrae_mobile/features/assistant/data/datasources/assistant_remote_datasource.dart';
+import 'package:kyrae_mobile/features/assistant/data/repositories/assistant_repository_impl.dart';
+import 'package:kyrae_mobile/features/assistant/domain/repositories/assistant_repository.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/create_assistant_message_task_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/get_assistant_message_task_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/send_assistant_message_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/presentation/providers/assistant_provider.dart';
 import 'package:kyrae_mobile/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:kyrae_mobile/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:kyrae_mobile/features/auth/data/repositories/auth_repository_impl.dart';
@@ -30,6 +39,18 @@ class SessionExpiredNotifier extends Notifier<bool> {
 final sessionExpiredProvider = NotifierProvider<SessionExpiredNotifier, bool>(
   SessionExpiredNotifier.new,
 );
+
+final flutterLocalNotificationsPluginProvider =
+    Provider<FlutterLocalNotificationsPlugin>((ref) {
+      return FlutterLocalNotificationsPlugin();
+    });
+
+final localNotificationServiceProvider = Provider<LocalNotificationService>((
+  ref,
+) {
+  final plugin = ref.watch(flutterLocalNotificationsPluginProvider);
+  return LocalNotificationService(plugin);
+});
 
 final secureFlutterStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
@@ -94,8 +115,44 @@ final restoreSessionUseCaseProvider = Provider<RestoreSessionUseCase>((ref) {
   return RestoreSessionUseCase(repository);
 });
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);
+
+final assistantRemoteDataSourceProvider = Provider<AssistantRemoteDataSource>((
+  ref,
+) {
+  final apiClient = ref.watch(apiClientProvider);
+  return AssistantRemoteDataSource(apiClient);
+});
+
+final assistantRepositoryProvider = Provider<AssistantRepository>((ref) {
+  final remote = ref.watch(assistantRemoteDataSourceProvider);
+  return AssistantRepositoryImpl(remote: remote);
+});
+
+final sendAssistantMessageUseCaseProvider =
+    Provider<SendAssistantMessageUseCase>((ref) {
+      final repository = ref.watch(assistantRepositoryProvider);
+      return SendAssistantMessageUseCase(repository);
+    });
+
+final createAssistantMessageTaskUseCaseProvider =
+    Provider<CreateAssistantMessageTaskUseCase>((ref) {
+      final repository = ref.watch(assistantRepositoryProvider);
+      return CreateAssistantMessageTaskUseCase(repository);
+    });
+
+final getAssistantMessageTaskUseCaseProvider =
+    Provider<GetAssistantMessageTaskUseCase>((ref) {
+      final repository = ref.watch(assistantRepositoryProvider);
+      return GetAssistantMessageTaskUseCase(repository);
+    });
+
+final assistantControllerProvider =
+    NotifierProvider<AssistantController, AssistantState>(
+      AssistantController.new,
+    );
 
 final routerRefreshNotifierProvider = Provider<ValueNotifier<int>>((ref) {
   final notifier = ValueNotifier<int>(0);

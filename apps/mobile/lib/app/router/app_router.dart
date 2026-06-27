@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kyrae_mobile/app/di/providers.dart';
+import 'package:kyrae_mobile/features/assistant/presentation/pages/assistant_page.dart';
 import 'package:kyrae_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:kyrae_mobile/features/auth/presentation/pages/login_page.dart';
 import 'package:kyrae_mobile/features/home/presentation/pages/home_page.dart';
@@ -14,6 +15,10 @@ class AppRouter {
       routes: [
         GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
         GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+        GoRoute(
+          path: '/assistant',
+          builder: (context, state) => const AssistantPage(),
+        ),
         GoRoute(
           path: '/profile',
           builder: (context, state) => const ProfilePage(),

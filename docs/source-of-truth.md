@@ -67,6 +67,7 @@ Current official beta scope:
 - auth (login, logout, me, refresh)
 - home (dashboard)
 - profile
+- assistant text chat
 
 Documented target capabilities:
 
@@ -87,7 +88,7 @@ Frontend API usage source of truth:
 
 Audit list pagination shape is defined in `packages/shared-contracts/src/audit/audit.contracts.ts` and implemented by `GET /audit-events`.
 
-Assistant message shape is defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /messages`.
+Assistant message and task shapes are defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /messages`, `POST /messages/tasks`, and `GET /messages/tasks/:id`.
 
 When changing an endpoint:
 
@@ -160,13 +161,18 @@ Source of truth:
 - `apps/backend/src/messages/`
 - `apps/backend/src/openclaw/`
 - `apps/frontend/src/app/features/assistant/`
+- `apps/mobile/lib/features/assistant/`
 
 Rules:
 
 - Clients must call the Kyrae backend, not OpenClaw directly.
 - `POST /messages` is the current backend entrypoint for text messages.
+- `POST /messages/tasks` is the current backend entrypoint for asynchronous text-message tasks.
+- `GET /messages/tasks/:id` is the current backend entrypoint for polling task status.
 - `OpenClawService` is the current backend adapter for OpenClaw-compatible request/response behavior.
+- Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
 - Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
+- Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 
 ## Environment Variables
 

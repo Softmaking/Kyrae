@@ -10,6 +10,7 @@ import { Branch } from '../branches/branch.entity';
 import { UserBranch } from '../branches/user-branch.entity';
 import { AppConfig } from '../configuration/app-config.entity';
 import { Conversation } from '../messages/conversation.entity';
+import { AssistantMessageTask } from '../messages/assistant-message-task.entity';
 import { Message } from '../messages/message.entity';
 
 export default new DataSource({
@@ -30,6 +31,7 @@ export default new DataSource({
     UserBranch,
     AppConfig,
     Conversation,
+    AssistantMessageTask,
     Message,
   ],
   migrations: ['src/database/migrations/*.ts'],

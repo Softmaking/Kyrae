@@ -5,6 +5,7 @@ import { Branch } from '../branches/branch.entity';
 import { UserBranch } from '../branches/user-branch.entity';
 import { AppConfig } from '../configuration/app-config.entity';
 import { Conversation } from '../messages/conversation.entity';
+import { AssistantMessageTask } from '../messages/assistant-message-task.entity';
 import { Message } from '../messages/message.entity';
 import { Organization } from '../organizations/organization.entity';
 import { UserOrganization } from '../organizations/user-organization.entity';
@@ -33,6 +34,7 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
       UserBranch,
       AppConfig,
       Conversation,
+      AssistantMessageTask,
       Message,
     ],
     synchronize: false,

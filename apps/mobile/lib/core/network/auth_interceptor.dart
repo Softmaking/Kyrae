@@ -9,9 +9,9 @@ class AuthInterceptor extends Interceptor {
     required AuthLocalDataSource localDataSource,
     required Dio refreshDio,
     required void Function() onSessionExpired,
-  })  : _localDataSource = localDataSource,
-        _refreshDio = refreshDio,
-        _onSessionExpired = onSessionExpired;
+  }) : _localDataSource = localDataSource,
+       _refreshDio = refreshDio,
+       _onSessionExpired = onSessionExpired;
 
   final AuthLocalDataSource _localDataSource;
   final Dio _refreshDio;
@@ -19,10 +19,8 @@ class AuthInterceptor extends Interceptor {
 
   bool _isRefreshing = false;
 
-  final List<({
-    RequestOptions options,
-    ErrorInterceptorHandler handler,
-  })> _pendingRequests = [];
+  final List<({RequestOptions options, ErrorInterceptorHandler handler})>
+  _pendingRequests = [];
 
   @override
   Future<void> onRequest(

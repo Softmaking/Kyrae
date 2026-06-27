@@ -1,5 +1,8 @@
-import type { SendAssistantMessageResponse } from '@kyrae/shared-contracts';
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import type {
+  AssistantMessageTaskDto,
+  SendAssistantMessageResponse,
+} from '@kyrae/shared-contracts';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -25,5 +28,28 @@ export class MessagesController {
       ipAddress: req.ip ?? req.socket.remoteAddress,
       userAgent: req.headers['user-agent'],
     });
+  }
+
+  @Post('tasks')
+  @Permissions('ASSISTANT_CHAT_USE')
+  createMessageTask(
+    @Body() dto: SendMessageDto,
+    @Req() req: Request & { user: JwtPayload }
+  ): Promise<AssistantMessageTaskDto> {
+    return this.messagesService.createMessageTask({
+      userId: req.user.sub,
+      dto,
+      ipAddress: req.ip ?? req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
+  @Get('tasks/:id')
+  @Permissions('ASSISTANT_CHAT_USE')
+  findMessageTask(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload }
+  ): Promise<AssistantMessageTaskDto> {
+    return this.messagesService.findMessageTask(id, req.user.sub);
   }
 }

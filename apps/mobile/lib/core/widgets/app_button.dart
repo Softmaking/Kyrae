@@ -32,7 +32,7 @@ class AppButton extends StatelessWidget {
               ? null
               : [
                   BoxShadow(
-                    color: AppColors.brandPrimary.withValues(alpha:  0.25),
+                    color: AppColors.brandPrimary.withValues(alpha: 0.25),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -43,8 +43,8 @@ class AppButton extends StatelessWidget {
           child: InkWell(
             onTap: loading ? null : onPressed,
             borderRadius: BorderRadius.circular(12),
-            splashColor: Colors.white.withValues(alpha:  0.15),
-            highlightColor: Colors.white.withValues(alpha:  0.1),
+            splashColor: Colors.white.withValues(alpha: 0.15),
+            highlightColor: Colors.white.withValues(alpha: 0.1),
             child: Container(
               alignment: Alignment.center,
               decoration: BoxDecoration(

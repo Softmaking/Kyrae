@@ -25,6 +25,20 @@ export interface SendAssistantMessageResponse {
   openClawRequestId: string | null;
 }
 
+export type AssistantTaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface AssistantMessageTaskDto {
+  id: string;
+  status: AssistantTaskStatus;
+  conversationId: string;
+  userMessage: AssistantMessageDto;
+  assistantMessage: AssistantMessageDto | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
 export interface OpenClawRequest {
   sessionId: string;
   channel: AssistantChannel;

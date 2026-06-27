@@ -27,15 +27,15 @@ export class OpenClawService {
     }
 
     const timeoutMs = Number(this.configService.get<string>('OPENCLAW_TIMEOUT_MS', '10000'));
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const controller = timeoutMs > 0 ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
     try {
       const response = await fetch(`${baseUrl.replace(/\/$/, '')}/messages`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(request),
-        signal: controller.signal,
+        signal: controller?.signal,
       });
 
       if (!response.ok) {
@@ -59,7 +59,7 @@ export class OpenClawService {
       }
       throw new ServiceUnavailableException('OpenClaw service is unavailable');
     } finally {
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
     }
   }
 }
