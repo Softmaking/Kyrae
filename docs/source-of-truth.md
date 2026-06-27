@@ -175,6 +175,7 @@ Rules:
 - `sessionId` is the canonical API identifier for assistant context; `conversationId` remains a temporary compatibility alias.
 - `openclaw_requests` persists OpenClaw request payloads, response payloads, status, errors, and duration.
 - Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
+- Mobile assistant session history is implemented in `apps/mobile/lib/features/assistant/` and uses `GET /sessions` with a default page size of 10 plus a manual "Ver más" flow.
 - Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 

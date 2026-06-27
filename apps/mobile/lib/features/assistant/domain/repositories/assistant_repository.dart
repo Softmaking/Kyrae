@@ -14,4 +14,13 @@ abstract class AssistantRepository {
   });
 
   Future<Either<Failure, AssistantMessageTask>> findMessageTask(String taskId);
+
+  Future<Either<Failure, AssistantSessionPage>> findSessions({
+    int limit = 10,
+    String? cursor,
+  });
+
+  Future<Either<Failure, AssistantSessionMessages>> findSessionMessages(
+    String sessionId,
+  );
 }

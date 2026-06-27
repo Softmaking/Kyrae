@@ -64,6 +64,39 @@ class AssistantRemoteDataSource {
     }
   }
 
+  Future<AssistantSessionPageModel> findSessions({
+    int limit = 10,
+    String? cursor,
+  }) async {
+    try {
+      final queryParameters = <String, dynamic>{'limit': limit};
+      if (cursor != null) queryParameters['cursor'] = cursor;
+
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/sessions',
+        queryParameters: queryParameters,
+      );
+
+      return AssistantSessionPageModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ServerException(_extractMessage(error));
+    }
+  }
+
+  Future<AssistantSessionMessagesModel> findSessionMessages(
+    String sessionId,
+  ) async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/sessions/$sessionId/messages',
+      );
+
+      return AssistantSessionMessagesModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ServerException(_extractMessage(error));
+    }
+  }
+
   String _extractMessage(DioException error) {
     final data = error.response?.data;
 

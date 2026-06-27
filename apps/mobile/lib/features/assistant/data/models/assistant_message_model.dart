@@ -94,3 +94,82 @@ class AssistantMessageTaskModel extends AssistantMessageTask {
     };
   }
 }
+
+class AssistantSessionModel extends AssistantSession {
+  const AssistantSessionModel({
+    required super.id,
+    required super.title,
+    required super.channel,
+    required super.status,
+    required super.messageCount,
+    required super.createdAt,
+    required super.updatedAt,
+    super.lastMessageAt,
+  });
+
+  factory AssistantSessionModel.fromJson(Map<String, dynamic> json) {
+    return AssistantSessionModel(
+      id: json['id'] as String,
+      title: json['title'] as String?,
+      channel: json['channel'] as String,
+      status: _sessionStatusFromString(json['status'] as String),
+      messageCount: json['messageCount'] as int,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      lastMessageAt: json['lastMessageAt'] == null
+          ? null
+          : DateTime.parse(json['lastMessageAt'] as String),
+    );
+  }
+
+  static AssistantSessionStatus _sessionStatusFromString(String status) {
+    return switch (status) {
+      'active' => AssistantSessionStatus.active,
+      'completed' => AssistantSessionStatus.completed,
+      'failed' => AssistantSessionStatus.failed,
+      'archived' => AssistantSessionStatus.archived,
+      _ => AssistantSessionStatus.active,
+    };
+  }
+}
+
+class AssistantSessionPageModel extends AssistantSessionPage {
+  const AssistantSessionPageModel({required super.sessions, super.nextCursor});
+
+  factory AssistantSessionPageModel.fromJson(Map<String, dynamic> json) {
+    final sessions = (json['sessions'] as List<dynamic>)
+        .map(
+          (item) =>
+              AssistantSessionModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+
+    return AssistantSessionPageModel(
+      sessions: sessions,
+      nextCursor: json['nextCursor'] as String?,
+    );
+  }
+}
+
+class AssistantSessionMessagesModel extends AssistantSessionMessages {
+  const AssistantSessionMessagesModel({
+    required super.session,
+    required super.messages,
+  });
+
+  factory AssistantSessionMessagesModel.fromJson(Map<String, dynamic> json) {
+    final messages = (json['messages'] as List<dynamic>)
+        .map(
+          (item) =>
+              AssistantMessageModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+
+    return AssistantSessionMessagesModel(
+      session: AssistantSessionModel.fromJson(
+        json['session'] as Map<String, dynamic>,
+      ),
+      messages: messages,
+    );
+  }
+}

@@ -14,6 +14,8 @@ import 'package:kyrae_mobile/features/assistant/data/datasources/assistant_remot
 import 'package:kyrae_mobile/features/assistant/data/repositories/assistant_repository_impl.dart';
 import 'package:kyrae_mobile/features/assistant/domain/repositories/assistant_repository.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/create_assistant_message_task_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_session_messages_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_sessions_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/get_assistant_message_task_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/send_assistant_message_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/presentation/providers/assistant_provider.dart';
@@ -147,6 +149,18 @@ final getAssistantMessageTaskUseCaseProvider =
     Provider<GetAssistantMessageTaskUseCase>((ref) {
       final repository = ref.watch(assistantRepositoryProvider);
       return GetAssistantMessageTaskUseCase(repository);
+    });
+
+final findAssistantSessionsUseCaseProvider =
+    Provider<FindAssistantSessionsUseCase>((ref) {
+      final repository = ref.watch(assistantRepositoryProvider);
+      return FindAssistantSessionsUseCase(repository);
+    });
+
+final findAssistantSessionMessagesUseCaseProvider =
+    Provider<FindAssistantSessionMessagesUseCase>((ref) {
+      final repository = ref.watch(assistantRepositoryProvider);
+      return FindAssistantSessionMessagesUseCase(repository);
     });
 
 final assistantControllerProvider =

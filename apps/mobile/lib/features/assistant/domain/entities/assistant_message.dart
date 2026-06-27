@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 
 enum AssistantMessageRole { user, assistant, system }
 
+enum AssistantSessionStatus { active, completed, failed, archived }
+
 class AssistantMessage extends Equatable {
   const AssistantMessage({
     required this.id,
@@ -73,4 +75,61 @@ class AssistantMessageTask extends Equatable {
     updatedAt,
     completedAt,
   ];
+}
+
+class AssistantSession extends Equatable {
+  const AssistantSession({
+    required this.id,
+    required this.title,
+    required this.channel,
+    required this.status,
+    required this.messageCount,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastMessageAt,
+  });
+
+  final String id;
+  final String? title;
+  final String channel;
+  final AssistantSessionStatus status;
+  final int messageCount;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? lastMessageAt;
+
+  @override
+  List<Object?> get props => [
+    id,
+    title,
+    channel,
+    status,
+    messageCount,
+    createdAt,
+    updatedAt,
+    lastMessageAt,
+  ];
+}
+
+class AssistantSessionPage extends Equatable {
+  const AssistantSessionPage({required this.sessions, this.nextCursor});
+
+  final List<AssistantSession> sessions;
+  final String? nextCursor;
+
+  @override
+  List<Object?> get props => [sessions, nextCursor];
+}
+
+class AssistantSessionMessages extends Equatable {
+  const AssistantSessionMessages({
+    required this.session,
+    required this.messages,
+  });
+
+  final AssistantSession session;
+  final List<AssistantMessage> messages;
+
+  @override
+  List<Object?> get props => [session, messages];
 }

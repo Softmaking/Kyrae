@@ -32,8 +32,8 @@ class LocalNotificationService {
 
     const androidDetails = AndroidNotificationDetails(
       'assistant_responses',
-      'Assistant responses',
-      channelDescription: 'Notifications for completed assistant responses.',
+      'Respuestas de Kyrae',
+      channelDescription: 'Notificaciones de respuestas completadas de Kyrae.',
       importance: Importance.high,
       priority: Priority.high,
     );
@@ -46,7 +46,7 @@ class LocalNotificationService {
     await _plugin.show(
       1001,
       'Respuesta lista',
-      'El asistente terminó de procesar tu instrucción.',
+      'Kyrae terminó de procesar tu instrucción.',
       details,
     );
   }

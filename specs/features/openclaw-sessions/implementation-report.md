@@ -12,6 +12,7 @@ Implemented and validated.
 - Added message status persistence.
 - Added web session list and persisted history loading.
 - Added cursor pagination for the assistant session list; the frontend loads 10 sessions initially and appends more through a "Ver más" button.
+- Added mobile session history through a paginated bottom sheet that loads 10 sessions initially and appends more through a "Ver más" button.
 - Updated mobile assistant calls to send `sessionId` while retaining response compatibility with `conversationId`.
 
 ## Validation Evidence

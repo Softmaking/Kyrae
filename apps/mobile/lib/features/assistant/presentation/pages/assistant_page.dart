@@ -21,6 +21,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     super.initState();
     Future.microtask(() {
       ref.read(localNotificationServiceProvider).initialize();
+      ref.read(assistantControllerProvider.notifier).loadSessions();
     });
   }
 
@@ -49,6 +50,18 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
+  Future<void> _showHistory() async {
+    await ref.read(assistantControllerProvider.notifier).loadSessions();
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _SessionHistorySheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(appLifecycleProvider);
@@ -56,7 +69,16 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
     return Scaffold(
       backgroundColor: AppColors.slate50,
-      appBar: AppBar(title: const Text('Asistente')),
+      appBar: AppBar(
+        title: const Text('Asistente'),
+        actions: [
+          IconButton(
+            tooltip: 'Historial',
+            onPressed: _showHistory,
+            icon: const Icon(Icons.history_rounded),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -67,6 +89,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                 children: [
                   const _AssistantHeader(),
                   const SizedBox(height: 16),
+                  if (state.isLoadingHistory) const _HistoryLoadingBanner(),
                   if (state.messages.isEmpty) const _EmptyState(),
                   ...state.messages.map(_MessageBubble.new),
                   if (state.isSending) const _ThinkingBubble(),
@@ -87,6 +110,249 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       ),
     );
   }
+}
+
+class _SessionHistorySheet extends ConsumerWidget {
+  const _SessionHistorySheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(assistantControllerProvider);
+    final controller = ref.read(assistantControllerProvider.notifier);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.42,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.slate300,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Historial',
+                      style: TextStyle(
+                        color: AppColors.slate900,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      controller.newSession();
+                      Navigator.of(context).pop();
+                    },
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Nueva'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (state.isLoadingSessions)
+                const _SessionLoadingItem()
+              else if (state.sessions.isEmpty)
+                const _EmptySessionsItem()
+              else
+                ...state.sessions.map(
+                  (session) => _SessionListItem(
+                    session: session,
+                    isActive: state.conversationId == session.id,
+                    onTap: () async {
+                      await controller.openSession(session);
+                      if (context.mounted) Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+              if (state.sessionsNextCursor != null) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: state.isLoadingMoreSessions
+                        ? null
+                        : () => controller.loadMoreSessions(),
+                    child: Text(
+                      state.isLoadingMoreSessions ? 'Cargando...' : 'Ver más',
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SessionListItem extends StatelessWidget {
+  const _SessionListItem({
+    required this.session,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final AssistantSession session;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final lastDate = session.lastMessageAt ?? session.updatedAt;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isActive ? AppColors.brandSoft : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isActive ? AppColors.brandPrimary : AppColors.slate200,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                session.title?.isNotEmpty == true
+                    ? session.title!
+                    : 'Sin título',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.slate900,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Text(
+                    '${session.messageCount} mensajes',
+                    style: const TextStyle(
+                      color: AppColors.slate500,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('·', style: TextStyle(color: AppColors.slate400)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _formatShortDate(lastDate),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: AppColors.slate400,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionLoadingItem extends StatelessWidget {
+  const _SessionLoadingItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 24),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _EmptySessionsItem extends StatelessWidget {
+  const _EmptySessionsItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.slate50,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.slate200),
+      ),
+      child: const Text(
+        'Todavía no hay conversaciones guardadas.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.slate500, fontSize: 13),
+      ),
+    );
+  }
+}
+
+class _HistoryLoadingBanner extends StatelessWidget {
+  const _HistoryLoadingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.slate200),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 10),
+          Text(
+            'Cargando historial...',
+            style: TextStyle(color: AppColors.slate600, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatShortDate(DateTime value) {
+  final local = value.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+
+  return '$day/$month $hour:$minute';
 }
 
 class _AssistantHeader extends StatelessWidget {

@@ -59,4 +59,35 @@ class AssistantRepositoryImpl implements AssistantRepository {
       return const Left(ServerFailure('No fue posible consultar la tarea'));
     }
   }
+
+  @override
+  Future<Either<Failure, AssistantSessionPage>> findSessions({
+    int limit = 10,
+    String? cursor,
+  }) async {
+    try {
+      final result = await remote.findSessions(limit: limit, cursor: cursor);
+      return Right(result);
+    } on ServerException catch (error) {
+      return Left(ServerFailure(error.message));
+    } catch (_) {
+      return const Left(
+        ServerFailure('No fue posible cargar las conversaciones'),
+      );
+    }
+  }
+
+  @override
+  Future<Either<Failure, AssistantSessionMessages>> findSessionMessages(
+    String sessionId,
+  ) async {
+    try {
+      final result = await remote.findSessionMessages(sessionId);
+      return Right(result);
+    } on ServerException catch (error) {
+      return Left(ServerFailure(error.message));
+    } catch (_) {
+      return const Left(ServerFailure('No fue posible cargar el historial'));
+    }
+  }
 }

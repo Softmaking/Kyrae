@@ -135,7 +135,7 @@ Current implementation:
 - The backend uses `OpenClawService` as the only OpenClaw adapter.
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
-- Mobile polls asynchronous assistant tasks and can show a local best-effort notification when a response completes while the app is not active.
+- Mobile polls asynchronous assistant tasks, can show a local best-effort notification when a response completes while the app is not active, and loads assistant session history through a paginated bottom sheet.
 
 Not implemented:
 

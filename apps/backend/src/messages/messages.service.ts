@@ -145,9 +145,9 @@ export class MessagesService {
 
   async findMessageTask(id: string, userId: string): Promise<AssistantMessageTaskDto> {
     const task = await this.taskRepository.findOne({ where: { id } });
-    if (!task) throw new NotFoundException('Assistant task not found');
+    if (!task) throw new NotFoundException('No se encontró la tarea del asistente.');
     if (task.userId !== userId) {
-      throw new ForbiddenException('Assistant task does not belong to the current user');
+      throw new ForbiddenException('No tienes acceso a esta tarea del asistente.');
     }
 
     const userMessage = await this.messageRepository.findOneOrFail({
@@ -330,7 +330,7 @@ export class MessagesService {
     } catch (error) {
       await this.failOpenClawRequestTrace(requestTrace, error, startedAt);
       task.status = 'failed';
-      task.errorMessage = error instanceof Error ? error.message : 'Assistant task failed';
+      task.errorMessage = error instanceof Error ? error.message : 'La tarea del asistente falló.';
       task.completedAt = new Date();
       await this.taskRepository.save(task);
       await this.conversationRepository.update(task.conversationId, { status: 'failed' });
@@ -372,10 +372,10 @@ export class MessagesService {
     const conversation = await this.conversationRepository.findOne({ where: { id } });
 
     if (!conversation) {
-      throw new NotFoundException('Session not found');
+      throw new NotFoundException('No se encontró la conversación.');
     }
     if (conversation.userId !== userId) {
-      throw new ForbiddenException('Session does not belong to the current user');
+      throw new ForbiddenException('No tienes acceso a esta conversación.');
     }
 
     return conversation;
@@ -483,7 +483,8 @@ export class MessagesService {
     startedAt: number
   ): Promise<void> {
     trace.status = 'failed';
-    trace.errorMessage = error instanceof Error ? error.message : 'OpenClaw request failed';
+    trace.errorMessage =
+      error instanceof Error ? error.message : 'Kyrae no pudo procesar la solicitud.';
     trace.durationMs = Date.now() - startedAt;
     await this.openClawRequestRepository.save(trace);
   }

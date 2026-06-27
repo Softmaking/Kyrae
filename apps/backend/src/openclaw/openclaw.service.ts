@@ -14,7 +14,7 @@ export class OpenClawService {
     }
 
     return {
-      message: `OpenClaw mock response: received "${request.message}".`,
+      message: `Kyrae recibió tu mensaje: "${request.message}".`,
       requestId: `mock-${Date.now()}`,
       metadata: { mode: 'mock' },
     };
@@ -23,7 +23,7 @@ export class OpenClawService {
   private async sendHttpMessage(request: OpenClawRequest): Promise<OpenClawResponse> {
     const baseUrl = this.configService.get<string>('OPENCLAW_BASE_URL');
     if (!baseUrl) {
-      throw new ServiceUnavailableException('OpenClaw HTTP mode requires OPENCLAW_BASE_URL');
+      throw new ServiceUnavailableException('Kyrae no está configurado correctamente.');
     }
 
     const timeoutMs = Number(this.configService.get<string>('OPENCLAW_TIMEOUT_MS', '10000'));
@@ -39,12 +39,12 @@ export class OpenClawService {
       });
 
       if (!response.ok) {
-        throw new BadGatewayException(`OpenClaw request failed with status ${response.status}`);
+        throw new BadGatewayException('Kyrae no pudo procesar la solicitud.');
       }
 
       const body = (await response.json()) as Partial<OpenClawResponse>;
       if (!body.message || typeof body.message !== 'string') {
-        throw new BadGatewayException('OpenClaw returned an invalid response');
+        throw new BadGatewayException('Kyrae devolvió una respuesta inválida.');
       }
 
       return {
@@ -55,9 +55,9 @@ export class OpenClawService {
     } catch (error) {
       if (error instanceof BadGatewayException) throw error;
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new ServiceUnavailableException('OpenClaw request timed out');
+        throw new ServiceUnavailableException('Kyrae tardó demasiado en responder.');
       }
-      throw new ServiceUnavailableException('OpenClaw service is unavailable');
+      throw new ServiceUnavailableException('Kyrae no está disponible en este momento.');
     } finally {
       if (timeout) clearTimeout(timeout);
     }
