@@ -2,6 +2,9 @@ import type {
   AssistantChannel,
   AssistantMessageDto,
   AssistantMessageTaskDto,
+  AssistantRealtimeEvent,
+  AssistantRealtimeEventName,
+  AssistantRealtimeStatus,
   AssistantSessionDto,
   ListAssistantSessionMessagesResponse,
   ListAssistantSessionsResponse,
@@ -18,6 +21,7 @@ import { AssistantMessageTask } from './assistant-message-task.entity';
 import { Conversation } from './conversation.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import { Message } from './message.entity';
+import { MessagesGateway } from './messages.gateway';
 import { OpenClawRequestTrace } from './openclaw-request.entity';
 
 @Injectable()
@@ -35,7 +39,8 @@ export class MessagesService {
     @InjectRepository(OpenClawRequestTrace)
     private readonly openClawRequestRepository: Repository<OpenClawRequestTrace>,
     private readonly openClawService: OpenClawService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly messagesGateway: MessagesGateway
   ) {}
 
   async findSessions(
@@ -120,6 +125,16 @@ export class MessagesService {
       })
     );
     await this.touchConversation(conversation.id);
+    this.emitRealtime('assistant.message.received', {
+      sessionId: conversation.id,
+      taskId: null,
+      messageId: userMessage.id,
+      role: 'user',
+      status: 'received',
+      content: userMessage.content,
+      errorMessage: null,
+      channel,
+    });
 
     const task = await this.taskRepository.save(
       this.taskRepository.create({
@@ -130,6 +145,16 @@ export class MessagesService {
         channel,
       })
     );
+    this.emitRealtime('assistant.agent.processing', {
+      sessionId: conversation.id,
+      taskId: task.id,
+      messageId: userMessage.id,
+      role: 'assistant',
+      status: 'processing',
+      content: null,
+      errorMessage: null,
+      channel,
+    });
 
     void this.processMessageTask(
       task.id,
@@ -186,6 +211,26 @@ export class MessagesService {
       })
     );
     await this.touchConversation(conversation.id);
+    this.emitRealtime('assistant.message.received', {
+      sessionId: conversation.id,
+      taskId: null,
+      messageId: userMessage.id,
+      role: 'user',
+      status: 'received',
+      content: userMessage.content,
+      errorMessage: null,
+      channel,
+    });
+    this.emitRealtime('assistant.agent.processing', {
+      sessionId: conversation.id,
+      taskId: null,
+      messageId: userMessage.id,
+      role: 'assistant',
+      status: 'processing',
+      content: null,
+      errorMessage: null,
+      channel,
+    });
 
     const openClawRequest: OpenClawRequest = {
       sessionId: conversation.id,
@@ -210,6 +255,17 @@ export class MessagesService {
     } catch (error) {
       await this.failOpenClawRequestTrace(requestTrace, error, startedAt);
       await this.conversationRepository.update(conversation.id, { status: 'failed' });
+      this.emitRealtime('assistant.agent.failed', {
+        sessionId: conversation.id,
+        taskId: null,
+        messageId: userMessage.id,
+        role: 'assistant',
+        status: 'failed',
+        content: null,
+        errorMessage:
+          error instanceof Error ? error.message : 'Kyrae no pudo procesar la solicitud.',
+        channel,
+      });
       throw error;
     }
 
@@ -228,6 +284,17 @@ export class MessagesService {
       })
     );
     await this.touchConversation(conversation.id);
+    this.emitRealtime('assistant.agent.completed', {
+      sessionId: conversation.id,
+      taskId: null,
+      messageId: assistantMessage.id,
+      role: 'assistant',
+      status: 'completed',
+      content: assistantMessage.content,
+      errorMessage: null,
+      channel,
+    });
+    this.emitSessionUpdated(conversation.id, channel);
 
     await this.auditService.log({
       action: 'ASSISTANT_MESSAGE_SENT',
@@ -285,6 +352,16 @@ export class MessagesService {
     try {
       task.status = 'running';
       await this.taskRepository.save(task);
+      this.emitRealtime('assistant.agent.processing', {
+        sessionId: task.conversationId,
+        taskId: task.id,
+        messageId: task.userMessageId,
+        role: 'assistant',
+        status: 'processing',
+        content: null,
+        errorMessage: null,
+        channel,
+      });
 
       const openClawResponse = await this.openClawService.sendMessage(openClawRequest);
       await this.completeOpenClawRequestTrace(requestTrace, openClawResponse, startedAt);
@@ -309,6 +386,17 @@ export class MessagesService {
       task.assistantMessageId = assistantMessage.id;
       task.completedAt = new Date();
       await this.taskRepository.save(task);
+      this.emitRealtime('assistant.agent.completed', {
+        sessionId: task.conversationId,
+        taskId: task.id,
+        messageId: assistantMessage.id,
+        role: 'assistant',
+        status: 'completed',
+        content: assistantMessage.content,
+        errorMessage: null,
+        channel,
+      });
+      this.emitSessionUpdated(task.conversationId, channel);
 
       await this.auditService.log({
         action: 'ASSISTANT_MESSAGE_TASK_COMPLETED',
@@ -334,6 +422,17 @@ export class MessagesService {
       task.completedAt = new Date();
       await this.taskRepository.save(task);
       await this.conversationRepository.update(task.conversationId, { status: 'failed' });
+      this.emitRealtime('assistant.agent.failed', {
+        sessionId: task.conversationId,
+        taskId: task.id,
+        messageId: task.userMessageId,
+        role: 'assistant',
+        status: 'failed',
+        content: null,
+        errorMessage: task.errorMessage ?? 'Kyrae no pudo procesar la solicitud.',
+        channel,
+      });
+      this.emitSessionUpdated(task.conversationId, channel);
 
       await this.auditService.log({
         action: 'ASSISTANT_MESSAGE_TASK_FAILED',
@@ -449,6 +548,45 @@ export class MessagesService {
       .set({ updatedAt: () => 'now()', status: 'active' })
       .where('id = :id', { id })
       .execute();
+  }
+
+  private emitRealtime(
+    eventName: AssistantRealtimeEventName,
+    params: {
+      sessionId: string;
+      taskId: string | null;
+      messageId: string | null;
+      role: AssistantRealtimeEvent['role'];
+      status: AssistantRealtimeStatus;
+      content: string | null;
+      errorMessage: string | null;
+      channel: AssistantChannel;
+    }
+  ): void {
+    this.messagesGateway.emitToSession(eventName, {
+      sessionId: params.sessionId,
+      taskId: params.taskId,
+      messageId: params.messageId,
+      role: params.role,
+      status: params.status,
+      content: params.content,
+      errorMessage: params.errorMessage,
+      metadata: { channel: params.channel, agent: 'main' },
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  private emitSessionUpdated(sessionId: string, channel: AssistantChannel): void {
+    this.emitRealtime('assistant.session.updated', {
+      sessionId,
+      taskId: null,
+      messageId: null,
+      role: null,
+      status: 'completed',
+      content: null,
+      errorMessage: null,
+      channel,
+    });
   }
 
   private async createOpenClawRequestTrace(

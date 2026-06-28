@@ -127,6 +127,7 @@ Current implementation:
 - `/messages/tasks/:id` returns task status and the assistant response when completed.
 - `/sessions` lists authenticated assistant sessions with cursor pagination and a default page size of 10.
 - `/sessions/:id/messages` returns the persisted message history for one owned assistant session.
+- Socket.IO realtime events expose assistant message status for web and mobile clients.
 - The endpoint requires `ASSISTANT_CHAT_USE`.
 - User and assistant messages are stored in PostgreSQL.
 - Conversations are stored in PostgreSQL.
@@ -136,6 +137,7 @@ Current implementation:
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
 - Mobile polls asynchronous assistant tasks, can show a local best-effort notification when a response completes while the app is not active, and loads assistant session history through a paginated bottom sheet.
+- Mobile joins assistant sessions over Socket.IO when available and keeps polling as a fallback.
 
 Not implemented:
 

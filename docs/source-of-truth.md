@@ -171,11 +171,13 @@ Rules:
 - `GET /messages/tasks/:id` is the current backend entrypoint for polling task status.
 - `GET /sessions` is the current backend entrypoint for assistant session lists and uses cursor pagination with a default limit of 10.
 - `GET /sessions/:id/messages` is the current backend entrypoint for persisted assistant message history.
+- Socket.IO event handling for assistant realtime status is implemented in `apps/backend/src/messages/messages.gateway.ts`.
 - `OpenClawService` is the current backend adapter for OpenClaw-compatible request/response behavior.
 - `sessionId` is the canonical API identifier for assistant context; `conversationId` remains a temporary compatibility alias.
 - `openclaw_requests` persists OpenClaw request payloads, response payloads, status, errors, and duration.
 - Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
 - Mobile assistant session history is implemented in `apps/mobile/lib/features/assistant/` and uses `GET /sessions` with a default page size of 10 plus a manual "Ver más" flow.
+- Web and mobile assistant realtime clients consume Socket.IO events for received, processing, completed, failed, and session updated states.
 - Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 

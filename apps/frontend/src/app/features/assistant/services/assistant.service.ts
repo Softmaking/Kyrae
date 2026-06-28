@@ -4,6 +4,7 @@ import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api.config';
 import type {
+  AssistantMessageTaskDto,
   ListAssistantSessionMessagesResponse,
   ListAssistantSessionsResponse,
   SendAssistantMessageCommand,
@@ -19,6 +20,18 @@ export class AssistantService {
   async sendMessage(command: SendAssistantMessageCommand): Promise<SendAssistantMessageResponse> {
     return firstValueFrom(
       this.http.post<SendAssistantMessageResponse>(`${this.apiBaseUrl}/messages`, command)
+    );
+  }
+
+  async createMessageTask(command: SendAssistantMessageCommand): Promise<AssistantMessageTaskDto> {
+    return firstValueFrom(
+      this.http.post<AssistantMessageTaskDto>(`${this.apiBaseUrl}/messages/tasks`, command)
+    );
+  }
+
+  async getMessageTask(taskId: string): Promise<AssistantMessageTaskDto> {
+    return firstValueFrom(
+      this.http.get<AssistantMessageTaskDto>(`${this.apiBaseUrl}/messages/tasks/${taskId}`)
     );
   }
 

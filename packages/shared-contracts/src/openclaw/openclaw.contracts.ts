@@ -8,6 +8,34 @@ export type AssistantSessionStatus = 'active' | 'completed' | 'failed' | 'archiv
 
 export type OpenClawRequestStatus = 'pending' | 'completed' | 'failed';
 
+export type AssistantRealtimeEventName =
+  | 'assistant.message.received'
+  | 'assistant.agent.processing'
+  | 'assistant.agent.completed'
+  | 'assistant.agent.failed'
+  | 'assistant.session.updated';
+
+export type AssistantRealtimeStatus = 'received' | 'processing' | 'completed' | 'failed';
+
+export interface JoinAssistantSessionCommand {
+  sessionId: string;
+}
+
+export interface AssistantRealtimeEvent {
+  sessionId: string;
+  taskId: string | null;
+  messageId: string | null;
+  role: AssistantMessageRole | null;
+  status: AssistantRealtimeStatus;
+  content: string | null;
+  errorMessage: string | null;
+  metadata: {
+    channel: AssistantChannel;
+    agent?: 'main';
+  };
+  createdAt: string;
+}
+
 export interface SendAssistantMessageCommand {
   message: string;
   sessionId?: string;
