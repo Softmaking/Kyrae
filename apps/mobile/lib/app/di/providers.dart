@@ -11,6 +11,7 @@ import 'package:kyrae_mobile/core/network/auth_interceptor.dart';
 import 'package:kyrae_mobile/core/notifications/local_notification_service.dart';
 import 'package:kyrae_mobile/core/storage/secure_storage_service.dart';
 import 'package:kyrae_mobile/features/assistant/data/datasources/assistant_remote_datasource.dart';
+import 'package:kyrae_mobile/features/assistant/data/datasources/assistant_realtime_datasource.dart';
 import 'package:kyrae_mobile/features/assistant/data/repositories/assistant_repository_impl.dart';
 import 'package:kyrae_mobile/features/assistant/domain/repositories/assistant_repository.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/create_assistant_message_task_usecase.dart';
@@ -127,6 +128,14 @@ final assistantRemoteDataSourceProvider = Provider<AssistantRemoteDataSource>((
   final apiClient = ref.watch(apiClientProvider);
   return AssistantRemoteDataSource(apiClient);
 });
+
+final assistantRealtimeDataSourceProvider =
+    Provider<AssistantRealtimeDataSource>((ref) {
+      final localDataSource = ref.watch(authLocalDatasourceProvider);
+      final realtime = AssistantRealtimeDataSource(localDataSource);
+      ref.onDispose(realtime.dispose);
+      return realtime;
+    });
 
 final assistantRepositoryProvider = Provider<AssistantRepository>((ref) {
   final remote = ref.watch(assistantRemoteDataSourceProvider);

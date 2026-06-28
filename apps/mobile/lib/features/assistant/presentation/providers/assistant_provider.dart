@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kyrae_mobile/app/di/providers.dart';
 import 'package:kyrae_mobile/core/lifecycle/app_lifecycle_provider.dart';
 import 'package:kyrae_mobile/core/notifications/local_notification_service.dart';
+import 'package:kyrae_mobile/features/assistant/data/datasources/assistant_realtime_datasource.dart';
 import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/create_assistant_message_task_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_session_messages_usecase.dart';
@@ -83,6 +84,9 @@ class AssistantController extends Notifier<AssistantState> {
       findAssistantSessionMessagesUseCaseProvider,
     );
     _notifications = ref.watch(localNotificationServiceProvider);
+    _realtimeDataSource = ref.watch(assistantRealtimeDataSourceProvider);
+    _realtimeDataSource.setHandler(_handleRealtimeEvent);
+    unawaited(_realtimeDataSource.connect());
     return const AssistantState();
   }
 
@@ -93,6 +97,7 @@ class AssistantController extends Notifier<AssistantState> {
   late FindAssistantSessionsUseCase _findSessionsUseCase;
   late FindAssistantSessionMessagesUseCase _findSessionMessagesUseCase;
   late LocalNotificationService _notifications;
+  late AssistantRealtimeDataSource _realtimeDataSource;
 
   Future<void> loadSessions() async {
     if (state.isLoadingSessions) return;
@@ -168,6 +173,7 @@ class AssistantController extends Notifier<AssistantState> {
           messages: history.messages,
           errorMessage: null,
         );
+        unawaited(_realtimeDataSource.joinSession(history.session.id));
       },
     );
   }
@@ -204,8 +210,11 @@ class AssistantController extends Notifier<AssistantState> {
           messages: [...state.messages, task.userMessage],
           errorMessage: null,
         );
+        await _realtimeDataSource.joinSession(task.conversationId);
         unawaited(loadSessions());
-        await _pollTask(task.id);
+        if (!_realtimeDataSource.isConnected) {
+          await _pollTask(task.id);
+        }
       },
     );
   }
@@ -231,9 +240,9 @@ class AssistantController extends Notifier<AssistantState> {
               isSending: false,
               clearActiveTaskId: true,
               conversationId: task.conversationId,
-              messages: [...state.messages, task.assistantMessage!],
               errorMessage: null,
             );
+            _addMessage(task.assistantMessage!);
             unawaited(loadSessions());
             _notifyIfAppIsInactive();
             return false;
@@ -261,5 +270,71 @@ class AssistantController extends Notifier<AssistantState> {
     if (lifecycleState == AppLifecycleState.resumed) return;
 
     unawaited(_notifications.showAssistantResponseReady());
+  }
+
+  void _handleRealtimeEvent(Map<String, dynamic> event) {
+    final sessionId = event['sessionId'];
+    if (sessionId is! String || sessionId != state.conversationId) return;
+
+    final status = event['status'];
+    final role = event['role'];
+    final content = event['content'];
+
+    if (status == 'received' && role == 'user' && content is String) {
+      _addMessage(_messageFromRealtime(event, AssistantMessageRole.user));
+      return;
+    }
+
+    if (status == 'processing') {
+      state = state.copyWith(isSending: true, errorMessage: null);
+      return;
+    }
+
+    if (status == 'completed' && role == 'assistant' && content is String) {
+      _addMessage(_messageFromRealtime(event, AssistantMessageRole.assistant));
+      state = state.copyWith(
+        isSending: false,
+        clearActiveTaskId: true,
+        errorMessage: null,
+      );
+      unawaited(loadSessions());
+      _notifyIfAppIsInactive();
+      return;
+    }
+
+    if (status == 'failed') {
+      state = state.copyWith(
+        isSending: false,
+        clearActiveTaskId: true,
+        errorMessage:
+            event['errorMessage'] as String? ??
+            'Kyrae no pudo procesar la solicitud.',
+      );
+      unawaited(loadSessions());
+    }
+  }
+
+  void _addMessage(AssistantMessage message) {
+    if (state.messages.any((item) => item.id == message.id)) return;
+    state = state.copyWith(messages: [...state.messages, message]);
+  }
+
+  AssistantMessage _messageFromRealtime(
+    Map<String, dynamic> event,
+    AssistantMessageRole fallbackRole,
+  ) {
+    final createdAt = event['createdAt'] is String
+        ? DateTime.tryParse(event['createdAt'] as String) ?? DateTime.now()
+        : DateTime.now();
+
+    return AssistantMessage(
+      id:
+          event['messageId'] as String? ??
+          '${event['sessionId']}-${createdAt.toIso8601String()}',
+      conversationId: event['sessionId'] as String,
+      role: fallbackRole,
+      content: event['content'] as String? ?? '',
+      createdAt: createdAt,
+    );
   }
 }
