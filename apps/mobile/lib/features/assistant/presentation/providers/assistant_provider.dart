@@ -280,8 +280,7 @@ class AssistantController extends Notifier<AssistantState> {
     final role = event['role'];
     final content = event['content'];
 
-    if (status == 'received' && role == 'user' && content is String) {
-      _addMessage(_messageFromRealtime(event, AssistantMessageRole.user));
+    if (status == 'received' && role == 'user') {
       return;
     }
 
@@ -315,8 +314,21 @@ class AssistantController extends Notifier<AssistantState> {
   }
 
   void _addMessage(AssistantMessage message) {
-    if (state.messages.any((item) => item.id == message.id)) return;
+    if (state.messages.any((item) => _isSameMessage(item, message))) return;
     state = state.copyWith(messages: [...state.messages, message]);
+  }
+
+  bool _isSameMessage(AssistantMessage current, AssistantMessage next) {
+    if (current.id == next.id) return true;
+
+    final createdAtDifference = current.createdAt
+        .difference(next.createdAt)
+        .abs();
+
+    return current.conversationId == next.conversationId &&
+        current.role == next.role &&
+        current.content.trim() == next.content.trim() &&
+        createdAtDifference <= const Duration(seconds: 5);
   }
 
   AssistantMessage _messageFromRealtime(

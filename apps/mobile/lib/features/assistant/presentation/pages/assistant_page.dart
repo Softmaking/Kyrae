@@ -38,16 +38,19 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
     _controller.clear();
     await ref.read(assistantControllerProvider.notifier).send(text);
-    if (!mounted) return;
+    _scrollToBottom();
+  }
 
-    await Future<void>.delayed(const Duration(milliseconds: 80));
-    if (_scrollController.hasClients) {
-      await _scrollController.animateTo(
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+
+      _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
       );
-    }
+    });
   }
 
   Future<void> _showHistory() async {
@@ -64,6 +67,17 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(assistantControllerProvider, (previous, next) {
+      final previousMessageCount = previous?.messages.length ?? 0;
+      final messageCountChanged = previousMessageCount != next.messages.length;
+      final sendingChanged = previous?.isSending != next.isSending;
+      final historyChanged = previous?.conversationId != next.conversationId;
+
+      if (messageCountChanged || sendingChanged || historyChanged) {
+        _scrollToBottom();
+      }
+    });
+
     ref.watch(appLifecycleProvider);
     final state = ref.watch(assistantControllerProvider);
 

@@ -17,6 +17,11 @@ class AssistantRealtimeDataSource {
   Future<void> connect() async {
     if (_socket?.connected ?? false) return;
 
+    if (_socket != null) {
+      _socket!.connect();
+      return;
+    }
+
     final token = await _authLocalDataSource.getAccessToken();
     if (token == null || token.isEmpty) return;
 
