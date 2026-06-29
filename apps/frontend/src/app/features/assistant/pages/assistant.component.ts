@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AssistantRealtimeService } from '../services/assistant-realtime.service';
 import { AssistantService } from '../services/assistant.service';
@@ -8,6 +8,15 @@ import type {
   AssistantRealtimeEvent,
   AssistantSessionDto,
 } from '../models/assistant.model';
+
+interface AssistantMessageBlock {
+  type: 'heading' | 'paragraph' | 'list' | 'code';
+  text?: string;
+  level?: 1 | 2 | 3;
+  ordered?: boolean;
+  items?: string[];
+  language?: string;
+}
 
 @Component({
   selector: 'app-assistant',
@@ -19,6 +28,8 @@ import type {
 export class AssistantComponent implements OnInit, OnDestroy {
   private readonly assistantService = inject(AssistantService);
   private readonly realtimeService = inject(AssistantRealtimeService);
+
+  @ViewChild('messagesViewport') private messagesViewport?: ElementRef<HTMLElement>;
 
   readonly sessions = signal<AssistantSessionDto[]>([]);
   readonly messages = signal<AssistantMessageDto[]>([]);
@@ -101,6 +112,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.sessionId.set(response.session.id);
       this.messages.set(response.messages);
       this.realtimeService.joinSession(response.session.id);
+      this.scrollMessagesToBottom();
     } catch {
       this.error.set('No se pudo cargar el historial de la conversación.');
     } finally {
@@ -133,6 +145,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.sessionId.set(response.sessionId);
       this.realtimeService.joinSession(response.sessionId);
       this.addMessage(response.userMessage);
+      this.scrollMessagesToBottom();
       this.startTaskPolling(response.id);
       void this.loadSessions();
     } catch {
@@ -142,17 +155,103 @@ export class AssistantComponent implements OnInit, OnDestroy {
     }
   }
 
+  formatAssistantMessage(content: string): AssistantMessageBlock[] {
+    const lines = content.split(/\r?\n/);
+    const blocks: AssistantMessageBlock[] = [];
+    let index = 0;
+
+    while (index < lines.length) {
+      const line = lines[index];
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        index += 1;
+        continue;
+      }
+
+      if (trimmed.startsWith('```')) {
+        const language = trimmed.slice(3).trim() || undefined;
+        const codeLines: string[] = [];
+        index += 1;
+
+        while (index < lines.length && !lines[index].trim().startsWith('```')) {
+          codeLines.push(lines[index]);
+          index += 1;
+        }
+
+        if (index < lines.length) index += 1;
+        blocks.push({ type: 'code', text: codeLines.join('\n'), language });
+        continue;
+      }
+
+      const headingMatch = /^(#{1,3})\s+(.+)$/.exec(trimmed);
+      if (headingMatch) {
+        blocks.push({
+          type: 'heading',
+          level: headingMatch[1].length as 1 | 2 | 3,
+          text: headingMatch[2].trim(),
+        });
+        index += 1;
+        continue;
+      }
+
+      const unorderedMatch = /^[-*]\s+(.+)$/.exec(trimmed);
+      const orderedMatch = /^\d+[.)]\s+(.+)$/.exec(trimmed);
+      if (unorderedMatch || orderedMatch) {
+        const ordered = Boolean(orderedMatch);
+        const items: string[] = [];
+
+        while (index < lines.length) {
+          const current = lines[index].trim();
+          const itemMatch = ordered
+            ? /^\d+[.)]\s+(.+)$/.exec(current)
+            : /^[-*]\s+(.+)$/.exec(current);
+          if (!itemMatch) break;
+
+          items.push(itemMatch[1].trim());
+          index += 1;
+        }
+
+        blocks.push({ type: 'list', ordered, items });
+        continue;
+      }
+
+      const paragraphLines: string[] = [];
+      while (index < lines.length) {
+        const current = lines[index].trim();
+        if (
+          !current ||
+          current.startsWith('```') ||
+          /^(#{1,3})\s+/.test(current) ||
+          /^[-*]\s+/.test(current) ||
+          /^\d+[.)]\s+/.test(current)
+        ) {
+          break;
+        }
+
+        paragraphLines.push(current);
+        index += 1;
+      }
+
+      blocks.push({ type: 'paragraph', text: paragraphLines.join(' ') });
+    }
+
+    return blocks.length ? blocks : [{ type: 'paragraph', text: content }];
+  }
+
   private readonly handleRealtimeEvent = (event: AssistantRealtimeEvent): void => {
     if (this.sessionId() !== event.sessionId) return;
 
     if (event.status === 'received' && event.role === 'user' && event.content) {
       this.addMessage(this.eventToMessage(event));
+      this.scrollMessagesToBottom();
       return;
     }
 
     if (event.status === 'processing') {
       this.loading.set(true);
       this.error.set(null);
+      this.scrollMessagesToBottom();
       return;
     }
 
@@ -161,6 +260,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.completeActiveTask(event.taskId);
       this.loading.set(false);
       this.error.set(null);
+      this.scrollMessagesToBottom();
       void this.loadSessions();
       return;
     }
@@ -203,6 +303,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
         this.sessionId.set(task.sessionId);
         this.loading.set(false);
         this.error.set(null);
+        this.scrollMessagesToBottom();
         void this.loadSessions();
         return;
       }
@@ -235,6 +336,15 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.taskPollingTimeoutId = null;
     }
     this.activeTaskId = null;
+  }
+
+  private scrollMessagesToBottom(): void {
+    requestAnimationFrame(() => {
+      const element = this.messagesViewport?.nativeElement;
+      if (!element) return;
+
+      element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+    });
   }
 
   private addMessage(message: AssistantMessageDto): void {
