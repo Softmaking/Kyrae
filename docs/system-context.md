@@ -20,7 +20,7 @@ It includes:
 
 The IAM and security foundation must remain reusable. Unrelated business modules must not be added unless a specification explicitly requires them.
 
-`OpenClaw` and voice interaction are documented target capabilities only. No runtime assistant module, voice capture, speech-to-text, text-to-speech, or voice orchestration service is implemented yet.
+`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Voice interaction remains a documented target capability only. No voice capture, speech-to-text, text-to-speech, or voice orchestration service is implemented yet.
 
 ## Current Modules
 
@@ -34,6 +34,8 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - organizations
 - branches
 - configuration
+- messages
+- openclaw
 - health
 - security
 - database
@@ -51,16 +53,17 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - organizations
 - branches
 - configuration
+- assistant
 
 ### Mobile (Official Beta)
 
 - auth (login, logout, me, refresh)
 - home (dashboard)
 - profile
+- assistant text chat
 
 Documented target capabilities, not implemented in mobile beta:
 
-- OpenClaw interaction
 - voice input
 - voice output
 
@@ -73,7 +76,6 @@ Out of scope for mobile beta:
 - organizations
 - branches
 - configuration
-- OpenClaw runtime features
 - voice features
 
 ### Shared Contracts
@@ -90,6 +92,7 @@ Current contract areas:
 - organizations
 - branches
 - configuration
+- openclaw
 - common
 
 ## Authentication
@@ -114,6 +117,36 @@ Prepared but not implemented:
 - MFA
 - OpenClaw agent runtime
 - voice interaction flows
+
+## OpenClaw Assistant Messaging
+
+Current implementation:
+
+- `/messages` accepts authenticated web text messages.
+- `/messages/tasks` accepts authenticated asynchronous assistant text-message tasks.
+- `/messages/tasks/:id` returns task status and the assistant response when completed.
+- `/sessions` lists authenticated assistant sessions with cursor pagination and a default page size of 10.
+- `/sessions/:id/messages` returns the persisted message history for one owned assistant session.
+- Socket.IO realtime events expose assistant message status for web and mobile clients.
+- The endpoint requires `ASSISTANT_CHAT_USE`.
+- User and assistant messages are stored in PostgreSQL.
+- Conversations are stored in PostgreSQL.
+- Public API uses `sessionId`; the current database implementation still uses `conversations` as the internal sessions table.
+- OpenClaw request/response traces are stored in PostgreSQL through `openclaw_requests`.
+- The backend uses `OpenClawService` as the only OpenClaw adapter.
+- `OPENCLAW_MODE=mock` returns a deterministic local response.
+- `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
+- Mobile polls asynchronous assistant tasks, can show a local best-effort notification when a response completes while the app is not active, and loads assistant session history through a paginated bottom sheet.
+- Mobile joins assistant sessions over Socket.IO when available and keeps polling as a fallback.
+
+Not implemented:
+
+- OpenClaw runtime inside this repository.
+- WebSocket streaming.
+- Voice input or output.
+- External messaging channels.
+- Agent task execution beyond adapter request/response.
+- Real push notifications through FCM/APNs for completed assistant tasks.
 
 `AuthProvider` values:
 
@@ -155,6 +188,7 @@ Current domains:
 - ORGANIZATIONS
 - BRANCHES
 - CONFIGURATION
+- ASSISTANT
 
 Most domains use:
 
@@ -166,6 +200,10 @@ Most domains use:
 Audit currently exposes only:
 
 - `AUDIT_READ`
+
+Assistant currently exposes only:
+
+- `ASSISTANT_CHAT_USE`
 
 ## Organizations And Branches
 
@@ -231,8 +269,8 @@ Frontend API base URL source:
 - mobile client lives in `apps/mobile`
 - mobile consumes backend APIs without bypassing auth/authorization rules
 - mobile refresh token flow is implemented; expired tokens are automatically refreshed via AuthInterceptor
-- beta scope is limited to auth, home (dashboard), and profile
-- OpenClaw and voice interaction are target capabilities only and must not be implemented without approved feature artifacts
+- beta scope includes auth, home (dashboard), profile, and assistant text chat
+- voice interaction remains a target capability only and must not be implemented without approved feature artifacts
 - mobile modules outside beta scope are intentionally not implemented yet
 
 ## Backend Rules
@@ -256,6 +294,12 @@ Prepared but not active OAuth variables:
 - `MICROSOFT_CLIENT_ID`
 - `MICROSOFT_TENANT_ID`
 - `GOOGLE_CLIENT_ID`
+
+OpenClaw adapter variables:
+
+- `OPENCLAW_MODE`
+- `OPENCLAW_BASE_URL`
+- `OPENCLAW_TIMEOUT_MS`
 
 Frontend does not use runtime `NG_APP_*` variables. It uses Angular environment files.
 

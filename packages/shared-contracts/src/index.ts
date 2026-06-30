@@ -4,6 +4,7 @@ export * from './branches/branch.contracts';
 export * from './common/common.contracts';
 export * from './configuration/configuration.contracts';
 export * from './organizations/organization.contracts';
+export * from './openclaw/openclaw.contracts';
 export * from './permissions/permission.contracts';
 export * from './roles/role.contracts';
 export * from './users/user.contracts';

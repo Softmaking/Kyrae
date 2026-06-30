@@ -55,9 +55,19 @@ class AuthRemoteDataSource {
     final data = error.response?.data;
 
     if (data is Map<String, dynamic> && data['message'] is String) {
-      return data['message'] as String;
+      return _normalizeMessage(data['message'] as String);
     }
 
     return 'No fue posible completar la solicitud';
+  }
+
+  String _normalizeMessage(String message) {
+    return switch (message.trim().toLowerCase()) {
+      'invalid credentials' => 'Credenciales inválidas.',
+      'invalid credential' => 'Credenciales inválidas.',
+      'invalid refresh token' => 'Sesión inválida o expirada.',
+      'unauthorized' => 'No tienes autorización para realizar esta acción.',
+      _ => message,
+    };
   }
 }

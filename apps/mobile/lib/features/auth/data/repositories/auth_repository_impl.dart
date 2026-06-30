@@ -35,7 +35,9 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, AuthSession>> refreshSession(String refreshToken) async {
+  Future<Either<Failure, AuthSession>> refreshSession(
+    String refreshToken,
+  ) async {
     try {
       final session = await remote.refreshSession(refreshToken);
       await local.saveTokens(

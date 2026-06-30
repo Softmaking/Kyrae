@@ -1,0 +1,13 @@
+:host {
+  display: block;
+}
+
+.assistant-message-content {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.assistant-message-content p,
+.assistant-message-content li {
+  overflow-wrap: anywhere;
+}

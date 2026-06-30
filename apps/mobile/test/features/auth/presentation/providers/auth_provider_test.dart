@@ -10,72 +10,92 @@ import 'package:kyrae_mobile/features/auth/presentation/providers/auth_provider.
 
 void main() {
   group('AuthController', () {
-    test('bootstrap authenticates when a stored session and profile exist', () async {
-      final container = _buildContainer(
-        _FakeAuthRepository(hasSession: true, profileResult: const Right(_user)),
-      );
-      addTearDown(container.dispose);
+    test(
+      'bootstrap authenticates when a stored session and profile exist',
+      () async {
+        final container = _buildContainer(
+          _FakeAuthRepository(
+            hasSession: true,
+            profileResult: const Right(_user),
+          ),
+        );
+        addTearDown(container.dispose);
 
-      await _waitForAuthStatus(container, AuthStatus.authenticated);
+        await _waitForAuthStatus(container, AuthStatus.authenticated);
 
-      final state = container.read(authControllerProvider);
-      expect(state.status, AuthStatus.authenticated);
-      expect(state.user, _user);
-    });
+        final state = container.read(authControllerProvider);
+        expect(state.status, AuthStatus.authenticated);
+        expect(state.user, _user);
+      },
+    );
 
-    test('bootstrap remains unauthenticated when there is no stored session', () async {
-      final container = _buildContainer(_FakeAuthRepository(hasSession: false));
-      addTearDown(container.dispose);
+    test(
+      'bootstrap remains unauthenticated when there is no stored session',
+      () async {
+        final container = _buildContainer(
+          _FakeAuthRepository(hasSession: false),
+        );
+        addTearDown(container.dispose);
 
-      await _waitForAuthStatus(container, AuthStatus.unauthenticated);
+        await _waitForAuthStatus(container, AuthStatus.unauthenticated);
 
-      final state = container.read(authControllerProvider);
-      expect(state.status, AuthStatus.unauthenticated);
-      expect(state.user, isNull);
-    });
+        final state = container.read(authControllerProvider);
+        expect(state.status, AuthStatus.unauthenticated);
+        expect(state.user, isNull);
+      },
+    );
 
-    test('login sets authenticated state with the returned session user', () async {
-      final container = _buildContainer(
-        _FakeAuthRepository(
-          hasSession: false,
-          loginResult: const Right(_session),
-        ),
-      );
-      addTearDown(container.dispose);
-      await _waitForAuthStatus(container, AuthStatus.unauthenticated);
+    test(
+      'login sets authenticated state with the returned session user',
+      () async {
+        final container = _buildContainer(
+          _FakeAuthRepository(
+            hasSession: false,
+            loginResult: const Right(_session),
+          ),
+        );
+        addTearDown(container.dispose);
+        await _waitForAuthStatus(container, AuthStatus.unauthenticated);
 
-      await container
-          .read(authControllerProvider.notifier)
-          .login('admin@softmaking.cl', 'ChangeMe123!');
+        await container
+            .read(authControllerProvider.notifier)
+            .login('admin@softmaking.cl', 'ChangeMe123!');
 
-      final state = container.read(authControllerProvider);
-      expect(state.status, AuthStatus.authenticated);
-      expect(state.user, _user);
-      expect(state.errorMessage, isNull);
-    });
+        final state = container.read(authControllerProvider);
+        expect(state.status, AuthStatus.authenticated);
+        expect(state.user, _user);
+        expect(state.errorMessage, isNull);
+      },
+    );
 
-    test('login failure sets unauthenticated state and error message', () async {
-      final container = _buildContainer(
-        _FakeAuthRepository(
-          hasSession: false,
-          loginResult: const Left(AuthFailure('Credenciales invalidas')),
-        ),
-      );
-      addTearDown(container.dispose);
-      await _waitForAuthStatus(container, AuthStatus.unauthenticated);
+    test(
+      'login failure sets unauthenticated state and error message',
+      () async {
+        final container = _buildContainer(
+          _FakeAuthRepository(
+            hasSession: false,
+            loginResult: const Left(AuthFailure('Credenciales invalidas')),
+          ),
+        );
+        addTearDown(container.dispose);
+        await _waitForAuthStatus(container, AuthStatus.unauthenticated);
 
-      await container
-          .read(authControllerProvider.notifier)
-          .login('admin@softmaking.cl', 'bad-password');
+        await container
+            .read(authControllerProvider.notifier)
+            .login('admin@softmaking.cl', 'bad-password');
 
-      final state = container.read(authControllerProvider);
-      expect(state.status, AuthStatus.unauthenticated);
-      expect(state.errorMessage, 'Credenciales invalidas');
-    });
+        final state = container.read(authControllerProvider);
+        expect(state.status, AuthStatus.unauthenticated);
+        expect(state.errorMessage, 'Credenciales invalidas');
+      },
+    );
 
     test('session expiration signal forces unauthenticated state', () async {
       final container = _buildContainer(
-        _FakeAuthRepository(hasSession: true, profileResult: const Right(_user)),
+        _FakeAuthRepository(
+          hasSession: true,
+          profileResult: const Right(_user),
+        ),
       );
       addTearDown(container.dispose);
       await _waitForAuthStatus(container, AuthStatus.authenticated);
@@ -151,14 +171,15 @@ class _FakeAuthRepository implements AuthRepository {
   Future<Either<Failure, AuthSession>> login({
     required String email,
     required String password,
-  }) async =>
-      loginResult;
+  }) async => loginResult;
 
   @override
   Future<Either<Failure, Unit>> logout() async => const Right(unit);
 
   @override
-  Future<Either<Failure, AuthSession>> refreshSession(String refreshToken) async {
+  Future<Either<Failure, AuthSession>> refreshSession(
+    String refreshToken,
+  ) async {
     return const Right(_session);
   }
 

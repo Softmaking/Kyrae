@@ -120,8 +120,10 @@ class AuthController extends Notifier<AuthState> {
     final result = await _logoutUseCase();
 
     result.fold(
-      (failure) =>
-          state = state.copyWith(errorMessage: failure.message, clearUser: true),
+      (failure) => state = state.copyWith(
+        errorMessage: failure.message,
+        clearUser: true,
+      ),
       (_) => state = state.copyWith(
         status: AuthStatus.unauthenticated,
         clearUser: true,

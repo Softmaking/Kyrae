@@ -46,8 +46,9 @@ describe('DashboardComponent', () => {
   });
 
   it('should display role badges for each role', () => {
-    const roleBadges = fixture.nativeElement.querySelectorAll('.rounded-full');
-    expect(roleBadges.length).toBeGreaterThanOrEqual(2);
+    const dashboardText = fixture.nativeElement.textContent;
+    expect(dashboardText).toContain('admin');
+    expect(dashboardText).toContain('editor');
   });
 
   it('should display permissions count', () => {

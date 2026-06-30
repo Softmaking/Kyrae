@@ -67,13 +67,14 @@ Current official beta scope:
 - auth (login, logout, me, refresh)
 - home (dashboard)
 - profile
+- assistant text chat
 
-Documented target capabilities only:
+Documented target capabilities:
 
 - OpenClaw principal assistant agent
 - voice interaction
 
-No source code module is currently authoritative for OpenClaw or voice runtime behavior because these capabilities are not implemented yet.
+OpenClaw currently has a backend text-message adapter. Voice runtime behavior is not implemented yet.
 
 ## API Endpoints
 
@@ -86,6 +87,8 @@ Frontend API usage source of truth:
 - `apps/frontend/src/app/features/**/services/*.service.ts`
 
 Audit list pagination shape is defined in `packages/shared-contracts/src/audit/audit.contracts.ts` and implemented by `GET /audit-events`.
+
+Assistant message and task shapes are defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /messages`, `POST /messages/tasks`, and `GET /messages/tasks/:id`.
 
 When changing an endpoint:
 
@@ -150,6 +153,34 @@ Frontend route protection source of truth:
 
 Documentation must not invent permissions not seeded or enforced.
 
+## OpenClaw Assistant Messaging
+
+Source of truth:
+
+- `packages/shared-contracts/src/openclaw/openclaw.contracts.ts`
+- `apps/backend/src/messages/`
+- `apps/backend/src/openclaw/`
+- `apps/frontend/src/app/features/assistant/`
+- `apps/mobile/lib/features/assistant/`
+
+Rules:
+
+- Clients must call the Kyrae backend, not OpenClaw directly.
+- `POST /messages` is the current backend entrypoint for text messages.
+- `POST /messages/tasks` is the current backend entrypoint for asynchronous text-message tasks.
+- `GET /messages/tasks/:id` is the current backend entrypoint for polling task status.
+- `GET /sessions` is the current backend entrypoint for assistant session lists and uses cursor pagination with a default limit of 10.
+- `GET /sessions/:id/messages` is the current backend entrypoint for persisted assistant message history.
+- Socket.IO event handling for assistant realtime status is implemented in `apps/backend/src/messages/messages.gateway.ts`.
+- `OpenClawService` is the current backend adapter for OpenClaw-compatible request/response behavior.
+- `sessionId` is the canonical API identifier for assistant context; `conversationId` remains a temporary compatibility alias.
+- `openclaw_requests` persists OpenClaw request payloads, response payloads, status, errors, and duration.
+- Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
+- Mobile assistant session history is implemented in `apps/mobile/lib/features/assistant/` and uses `GET /sessions` with a default page size of 10 plus a manual "Ver más" flow.
+- Web and mobile assistant realtime clients consume Socket.IO events for received, processing, completed, failed, and session updated states.
+- Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
+- Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
+
 ## Environment Variables
 
 Backend source of truth:
@@ -167,6 +198,8 @@ Rules:
 - frontend must not contain secrets
 - frontend uses `apiBaseUrl`
 - runtime `NG_APP_*` variables are not used
+
+OpenClaw adapter environment variables are defined in `apps/backend/.env.example`.
 
 ## Database Schema
 
@@ -195,6 +228,7 @@ Seed defines:
 - default organization
 - default branch
 - default app configs
+- assistant chat permission
 
 ## Docker
 

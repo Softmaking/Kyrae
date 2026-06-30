@@ -34,14 +34,92 @@ class HomePage extends ConsumerWidget {
           children: [
             _WelcomeBanner(userName: user?.fullName ?? 'usuario'),
             const SizedBox(height: 16),
+            if (user?.permissions.contains('ASSISTANT_CHAT_USE') ?? false) ...[
+              const _AssistantShortcut(),
+              const SizedBox(height: 16),
+            ],
             _RoleBadges(roles: user?.roles ?? []),
             const SizedBox(height: 16),
             _DashboardCards(info: info),
           ],
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) =>
-            const Center(child: Text('Error cargando dashboard')),
+        error: (_, _) => const Center(child: Text('Error cargando dashboard')),
+      ),
+    );
+  }
+}
+
+class _AssistantShortcut extends StatelessWidget {
+  const _AssistantShortcut();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => context.push('/assistant'),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.slate200),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.slate200.withValues(alpha: 0.5),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Row(
+          children: [
+            _ShortcutIcon(),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Abrir asistente',
+                    style: TextStyle(
+                      color: AppColors.slate900,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Envía instrucciones por texto desde tu móvil.',
+                    style: TextStyle(color: AppColors.slate500, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppColors.slate400),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortcutIcon extends StatelessWidget {
+  const _ShortcutIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.brandSoft,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Icon(
+        Icons.chat_bubble_outline,
+        color: AppColors.brandPrimary,
+        size: 22,
       ),
     );
   }
@@ -61,7 +139,7 @@ class _WelcomeBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.slate200.withValues(alpha:  0.5),
+            color: AppColors.slate200.withValues(alpha: 0.5),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -85,9 +163,7 @@ class _WelcomeBanner extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    userName.isNotEmpty
-                        ? userName[0].toUpperCase()
-                        : 'U',
+                    userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -141,10 +217,7 @@ class _WelcomeBanner extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Sesión activa. JWT disponible para consumir APIs protegidas.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.slate600,
-                    ),
+                    style: TextStyle(fontSize: 13, color: AppColors.slate600),
                   ),
                 ),
               ],
@@ -168,22 +241,26 @@ class _RoleBadges extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 6,
-      children: roles.map((role) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.brandSoft,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.blue200),
-        ),
-        child: Text(
-          role,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.brandPrimary,
-          ),
-        ),
-      )).toList(),
+      children: roles
+          .map(
+            (role) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.brandSoft,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.blue200),
+              ),
+              child: Text(
+                role,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.brandPrimary,
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -237,7 +314,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.slate200.withValues(alpha:  0.5),
+            color: AppColors.slate200.withValues(alpha: 0.5),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
