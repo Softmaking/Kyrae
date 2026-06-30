@@ -35,48 +35,51 @@ void main() {
       );
     });
 
-    test('refreshes token and retries the failed request after a 401', () async {
-      final local = _FakeAuthLocalDataSource(
-        accessToken: 'expired-token',
-        refreshToken: 'refresh-token',
-      );
-      final mainAdapter = _QueueHttpClientAdapter([
-        _TestResponse(statusCode: 401, data: {'message': 'expired'}),
-      ]);
-      final refreshAdapter = _QueueHttpClientAdapter([
-        _TestResponse(
-          statusCode: 200,
-          data: {
-            'accessToken': 'new-access-token',
-            'refreshToken': 'new-refresh-token',
-          },
-        ),
-        _TestResponse(statusCode: 200, data: {'ok': true}),
-      ]);
-      final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = refreshAdapter;
-      final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = mainAdapter
-        ..interceptors.add(
-          AuthInterceptor(
-            localDataSource: local,
-            refreshDio: refreshDio,
-            onSessionExpired: () {},
-          ),
+    test(
+      'refreshes token and retries the failed request after a 401',
+      () async {
+        final local = _FakeAuthLocalDataSource(
+          accessToken: 'expired-token',
+          refreshToken: 'refresh-token',
         );
+        final mainAdapter = _QueueHttpClientAdapter([
+          _TestResponse(statusCode: 401, data: {'message': 'expired'}),
+        ]);
+        final refreshAdapter = _QueueHttpClientAdapter([
+          _TestResponse(
+            statusCode: 200,
+            data: {
+              'accessToken': 'new-access-token',
+              'refreshToken': 'new-refresh-token',
+            },
+          ),
+          _TestResponse(statusCode: 200, data: {'ok': true}),
+        ]);
+        final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
+          ..httpClientAdapter = refreshAdapter;
+        final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
+          ..httpClientAdapter = mainAdapter
+          ..interceptors.add(
+            AuthInterceptor(
+              localDataSource: local,
+              refreshDio: refreshDio,
+              onSessionExpired: () {},
+            ),
+          );
 
-      final response = await dio.get<Map<String, dynamic>>('/secure');
+        final response = await dio.get<Map<String, dynamic>>('/secure');
 
-      expect(response.data, {'ok': true});
-      expect(local.savedAccessToken, 'new-access-token');
-      expect(local.savedRefreshToken, 'new-refresh-token');
-      expect(refreshAdapter.requests.first.path, ApiConstants.refreshToken);
-      expect(refreshAdapter.requests.last.path, '/secure');
-      expect(
-        refreshAdapter.requests.last.headers['Authorization'],
-        'Bearer new-access-token',
-      );
-    });
+        expect(response.data, {'ok': true});
+        expect(local.savedAccessToken, 'new-access-token');
+        expect(local.savedRefreshToken, 'new-refresh-token');
+        expect(refreshAdapter.requests.first.path, ApiConstants.refreshToken);
+        expect(refreshAdapter.requests.last.path, '/secure');
+        expect(
+          refreshAdapter.requests.last.headers['Authorization'],
+          'Bearer new-access-token',
+        );
+      },
+    );
 
     test('clears session and notifies expiration when refresh fails', () async {
       var sessionExpired = false;
@@ -115,7 +118,7 @@ void main() {
 
 class _FakeAuthLocalDataSource extends AuthLocalDataSource {
   _FakeAuthLocalDataSource({this.accessToken, this.refreshToken})
-      : super(SecureStorageService(const FlutterSecureStorage()));
+    : super(SecureStorageService(const FlutterSecureStorage()));
 
   String? accessToken;
   String? refreshToken;

@@ -96,7 +96,7 @@
             <td><span class="admin-table-code">{{ event.action }}</span></td>
             <td>{{ event.resourceType || '-' }}</td>
             <td>
-              <span class="rounded-full px-2.5 py-1 text-xs font-medium ring-1" [class]="severityClass(event.severity)">
+              <span class="rounded-lg px-2.5 py-1 text-xs font-medium ring-1" [class]="severityClass(event.severity)">
                 {{ event.severity || 'INFO' }}
               </span>
             </td>
@@ -135,7 +135,7 @@
             <div class="rounded-xl bg-brand-soft-2 p-4">
               <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Severidad</dt>
               <dd class="mt-2">
-                <span class="rounded-full px-2.5 py-1 text-xs font-medium ring-1" [class]="severityClass(event.severity)">{{ event.severity || 'INFO' }}</span>
+                <span class="rounded-lg px-2.5 py-1 text-xs font-medium ring-1" [class]="severityClass(event.severity)">{{ event.severity || 'INFO' }}</span>
               </dd>
             </div>
             <div class="rounded-xl bg-brand-soft-2 p-4">

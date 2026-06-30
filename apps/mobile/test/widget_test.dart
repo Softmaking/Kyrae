@@ -21,7 +21,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authRepositoryProvider.overrideWithValue(_UnauthenticatedRepository()),
+          authRepositoryProvider.overrideWithValue(
+            _UnauthenticatedRepository(),
+          ),
         ],
         child: const KyraeApp(),
       ),
@@ -51,7 +53,9 @@ class _UnauthenticatedRepository implements AuthRepository {
   Future<Either<Failure, Unit>> logout() async => const Right(unit);
 
   @override
-  Future<Either<Failure, AuthSession>> refreshSession(String refreshToken) async {
+  Future<Either<Failure, AuthSession>> refreshSession(
+    String refreshToken,
+  ) async {
     return const Left(AuthFailure('No hay sesion'));
   }
 

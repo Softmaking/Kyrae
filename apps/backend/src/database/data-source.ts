@@ -9,6 +9,10 @@ import { UserOrganization } from '../organizations/user-organization.entity';
 import { Branch } from '../branches/branch.entity';
 import { UserBranch } from '../branches/user-branch.entity';
 import { AppConfig } from '../configuration/app-config.entity';
+import { Conversation } from '../messages/conversation.entity';
+import { AssistantMessageTask } from '../messages/assistant-message-task.entity';
+import { Message } from '../messages/message.entity';
+import { OpenClawRequestTrace } from '../messages/openclaw-request.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -27,6 +31,10 @@ export default new DataSource({
     Branch,
     UserBranch,
     AppConfig,
+    Conversation,
+    AssistantMessageTask,
+    Message,
+    OpenClawRequestTrace,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

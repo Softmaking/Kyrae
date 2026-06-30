@@ -51,10 +51,7 @@ class _LoginFormState extends State<LoginForm> {
           const SizedBox(height: 4),
           const Text(
             'Ingresa tus credenciales para continuar.',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.slate500,
-            ),
+            style: TextStyle(fontSize: 14, color: AppColors.slate500),
           ),
           const SizedBox(height: 24),
           AppTextField(
@@ -81,10 +78,7 @@ class _LoginFormState extends State<LoginForm> {
               ),
               child: Text(
                 widget.errorMessage!,
-                style: const TextStyle(
-                  color: Color(0xFF991B1B),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF991B1B), fontSize: 13),
               ),
             ),
             const SizedBox(height: 16),

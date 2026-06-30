@@ -36,7 +36,7 @@ export class AuthService {
         userAgent,
         severity: loginRisk.escalatedToCritical ? 'CRITICAL' : 'WARNING',
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Credenciales inválidas.');
     }
 
     if (this.securityService.isLocked(user.failedLoginAttempts, user.lockedUntil)) {
@@ -68,7 +68,7 @@ export class AuthService {
         userAgent,
         severity: 'WARNING',
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Credenciales inválidas.');
     }
 
     const matches = await bcrypt.compare(password, user.passwordHash);
@@ -100,7 +100,7 @@ export class AuthService {
         userAgent,
         severity: loginRisk.escalatedToCritical ? 'CRITICAL' : 'WARNING',
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Credenciales inválidas.');
     }
 
     await this.usersService.updateLoginSecurity(user.id, 0, null);
@@ -194,7 +194,7 @@ export class AuthService {
         userAgent,
         severity: invalidTokenRisk.escalatedToCritical ? 'CRITICAL' : 'ERROR',
       });
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Sesión inválida o expirada.');
     }
 
     await this.auditService.log({
