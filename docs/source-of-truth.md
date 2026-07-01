@@ -26,6 +26,13 @@ Source of truth:
 - `apps/backend/src/main.ts`
 - `apps/backend/src/app.module.ts`
 
+## STT Gateway Entrypoints
+
+Source of truth:
+
+- `apps/stt-gateway/src/main.ts`
+- `apps/stt-gateway/src/app.module.ts`
+
 ## Frontend Entrypoints
 
 Source of truth:
@@ -74,13 +81,17 @@ Documented target capabilities:
 - OpenClaw principal assistant agent
 - voice interaction
 
-OpenClaw currently has a backend text-message adapter. Voice runtime behavior is not implemented yet.
+OpenClaw currently has a backend text-message adapter. Web voice input is implemented through the backend voice STT adapter. Mobile voice runtime behavior is not implemented yet.
 
 ## API Endpoints
 
 Backend source of truth:
 
 - `apps/backend/src/**/*.controller.ts`
+
+STT gateway source of truth:
+
+- `apps/stt-gateway/src/**/*.controller.ts`
 
 Frontend API usage source of truth:
 
@@ -89,6 +100,8 @@ Frontend API usage source of truth:
 Audit list pagination shape is defined in `packages/shared-contracts/src/audit/audit.contracts.ts` and implemented by `GET /audit-events`.
 
 Assistant message and task shapes are defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /messages`, `POST /messages/tasks`, and `GET /messages/tasks/:id`.
+
+Assistant voice message shapes are defined in `packages/shared-contracts/src/voice/voice.contracts.ts` and implemented by `POST /voice/messages`.
 
 When changing an endpoint:
 
@@ -158,7 +171,9 @@ Documentation must not invent permissions not seeded or enforced.
 Source of truth:
 
 - `packages/shared-contracts/src/openclaw/openclaw.contracts.ts`
+- `packages/shared-contracts/src/voice/voice.contracts.ts`
 - `apps/backend/src/messages/`
+- `apps/backend/src/voice/`
 - `apps/backend/src/openclaw/`
 - `apps/frontend/src/app/features/assistant/`
 - `apps/mobile/lib/features/assistant/`
@@ -178,6 +193,8 @@ Rules:
 - Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
 - Mobile assistant session history is implemented in `apps/mobile/lib/features/assistant/` and uses `GET /sessions` with a default page size of 10 plus a manual "Ver más" flow.
 - Web and mobile assistant realtime clients consume Socket.IO events for received, processing, completed, failed, and session updated states.
+- Web voice input consumes `POST /voice/messages`; the backend transcribes audio and reuses the existing assistant message task flow.
+- Kyrae backend calls the configured STT provider through `VOICE_STT_BASE_URL`; `apps/stt-gateway` is the current HTTP STT provider for OpenAI cloud transcription.
 - Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 
@@ -200,6 +217,10 @@ Rules:
 - runtime `NG_APP_*` variables are not used
 
 OpenClaw adapter environment variables are defined in `apps/backend/.env.example`.
+
+Voice STT adapter environment variables are defined in `apps/backend/.env.example`.
+
+STT gateway environment variables are defined in `apps/stt-gateway/.env.example`.
 
 ## Database Schema
 

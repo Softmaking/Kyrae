@@ -9,6 +9,7 @@ It includes:
 - Angular frontend
 - NestJS backend
 - Flutter mobile client (official beta)
+- STT gateway for speech-to-text provider integration
 - PostgreSQL + TypeORM
 - Shared contracts package
 - Role/permission based authorization
@@ -20,7 +21,7 @@ It includes:
 
 The IAM and security foundation must remain reusable. Unrelated business modules must not be added unless a specification explicitly requires them.
 
-`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Voice interaction remains a documented target capability only. No voice capture, speech-to-text, text-to-speech, or voice orchestration service is implemented yet.
+`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Web voice input is implemented through the backend voice STT adapter and can call `apps/stt-gateway` for cloud transcription. Mobile voice interaction and voice output remain documented target capabilities only.
 
 ## Current Modules
 
@@ -36,6 +37,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - configuration
 - messages
 - openclaw
+- voice
 - health
 - security
 - database
@@ -93,6 +95,7 @@ Current contract areas:
 - branches
 - configuration
 - openclaw
+- voice
 - common
 
 ## Authentication
@@ -116,7 +119,7 @@ Prepared but not implemented:
 - change password flow
 - MFA
 - OpenClaw agent runtime
-- voice interaction flows
+- mobile voice interaction flows
 
 ## OpenClaw Assistant Messaging
 
@@ -125,6 +128,7 @@ Current implementation:
 - `/messages` accepts authenticated web text messages.
 - `/messages/tasks` accepts authenticated asynchronous assistant text-message tasks.
 - `/messages/tasks/:id` returns task status and the assistant response when completed.
+- `/voice/messages` accepts authenticated web audio, transcribes it, and creates an assistant text-message task.
 - `/sessions` lists authenticated assistant sessions with cursor pagination and a default page size of 10.
 - `/sessions/:id/messages` returns the persisted message history for one owned assistant session.
 - Socket.IO realtime events expose assistant message status for web and mobile clients.
@@ -136,6 +140,9 @@ Current implementation:
 - The backend uses `OpenClawService` as the only OpenClaw adapter.
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
+- `VOICE_STT_MODE=mock` returns a deterministic local transcription for development.
+- `VOICE_STT_MODE=http` sends audio to `POST {VOICE_STT_BASE_URL}/transcribe`.
+- `apps/stt-gateway` exposes `POST /transcribe` and currently supports `STT_PROVIDER=openai`.
 - Mobile polls asynchronous assistant tasks, can show a local best-effort notification when a response completes while the app is not active, and loads assistant session history through a paginated bottom sheet.
 - Mobile joins assistant sessions over Socket.IO when available and keeps polling as a fallback.
 
@@ -143,7 +150,8 @@ Not implemented:
 
 - OpenClaw runtime inside this repository.
 - WebSocket streaming.
-- Voice input or output.
+- Mobile voice input or output.
+- Voice output.
 - External messaging channels.
 - Agent task execution beyond adapter request/response.
 - Real push notifications through FCM/APNs for completed assistant tasks.
@@ -201,9 +209,10 @@ Audit currently exposes only:
 
 - `AUDIT_READ`
 
-Assistant currently exposes only:
+Assistant currently exposes:
 
 - `ASSISTANT_CHAT_USE`
+- `ASSISTANT_VOICE_USE`
 
 ## Organizations And Branches
 
@@ -300,6 +309,22 @@ OpenClaw adapter variables:
 - `OPENCLAW_MODE`
 - `OPENCLAW_BASE_URL`
 - `OPENCLAW_TIMEOUT_MS`
+
+Voice STT adapter variables:
+
+- `VOICE_STT_MODE`
+- `VOICE_STT_BASE_URL`
+- `VOICE_STT_TIMEOUT_MS`
+- `VOICE_MAX_AUDIO_MB`
+
+STT gateway variables:
+
+- `STT_PROVIDER`
+- `OPENAI_API_KEY`
+- `OPENAI_TRANSCRIPTION_MODEL`
+- `OPENAI_TRANSCRIPTION_LANGUAGE`
+- `OPENAI_TIMEOUT_MS`
+- `STT_MAX_AUDIO_MB`
 
 Frontend does not use runtime `NG_APP_*` variables. It uses Angular environment files.
 

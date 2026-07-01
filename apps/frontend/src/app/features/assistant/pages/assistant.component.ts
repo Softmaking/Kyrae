@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../auth/services/auth.service';
 import { AssistantRealtimeService } from '../services/assistant-realtime.service';
 import { AssistantService } from '../services/assistant.service';
 import type {
@@ -18,6 +19,8 @@ interface AssistantMessageBlock {
   language?: string;
 }
 
+type VoiceStatus = 'idle' | 'recording' | 'transcribing';
+
 @Component({
   selector: 'app-assistant',
   standalone: true,
@@ -27,6 +30,7 @@ interface AssistantMessageBlock {
 })
 export class AssistantComponent implements OnInit, OnDestroy {
   private readonly assistantService = inject(AssistantService);
+  private readonly authService = inject(AuthService);
   private readonly realtimeService = inject(AssistantRealtimeService);
 
   @ViewChild('messagesViewport') private messagesViewport?: ElementRef<HTMLElement>;
@@ -40,11 +44,15 @@ export class AssistantComponent implements OnInit, OnDestroy {
   readonly error = signal<string | null>(null);
   readonly sessionId = signal<string | null>(null);
   readonly sessionsNextCursor = signal<string | null>(null);
+  readonly voiceStatus = signal<VoiceStatus>('idle');
 
   private readonly sessionPageSize = 10;
   private readonly taskPollIntervalMs = 3000;
   private activeTaskId: string | null = null;
   private taskPollingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private mediaStream: MediaStream | null = null;
+  private audioChunks: Blob[] = [];
 
   draft = '';
 
@@ -65,6 +73,17 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.realtimeService.off('assistant.agent.failed', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.session.updated', this.handleRealtimeEvent);
     this.clearTaskPolling();
+    this.stopMediaStream();
+  }
+
+  canUseVoice(): boolean {
+    return this.authService.hasPermission('ASSISTANT_VOICE_USE');
+  }
+
+  voiceButtonLabel(): string {
+    if (this.voiceStatus() === 'recording') return 'Detener grabación';
+    if (this.voiceStatus() === 'transcribing') return 'Transcribiendo...';
+    return 'Hablar';
   }
 
   async loadSessions(): Promise<void> {
@@ -152,6 +171,40 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.error.set('No se pudo enviar el mensaje al asistente. Intenta nuevamente.');
       this.draft = message;
       this.loading.set(false);
+    }
+  }
+
+  async toggleVoiceRecording(): Promise<void> {
+    if (this.voiceStatus() === 'recording') {
+      this.mediaRecorder?.stop();
+      return;
+    }
+
+    if (this.loading() || this.voiceStatus() === 'transcribing') return;
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      this.error.set('Tu navegador no permite grabar audio desde esta página.');
+      return;
+    }
+
+    try {
+      this.error.set(null);
+      this.audioChunks = [];
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined;
+      this.mediaRecorder = new MediaRecorder(this.mediaStream, mimeType ? { mimeType } : undefined);
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) this.audioChunks.push(event.data);
+      };
+      this.mediaRecorder.onstop = () => {
+        void this.handleVoiceRecordingStopped();
+      };
+      this.mediaRecorder.start();
+      this.voiceStatus.set('recording');
+    } catch {
+      this.stopMediaStream();
+      this.voiceStatus.set('idle');
+      this.error.set('No se pudo acceder al micrófono. Revisa los permisos del navegador.');
     }
   }
 
@@ -277,6 +330,47 @@ export class AssistantComponent implements OnInit, OnDestroy {
       void this.loadSessions();
     }
   };
+
+  private async handleVoiceRecordingStopped(): Promise<void> {
+    const audioType = this.mediaRecorder?.mimeType || 'audio/webm';
+    this.stopMediaStream();
+
+    if (!this.audioChunks.length) {
+      this.voiceStatus.set('idle');
+      this.error.set('No se capturó audio para enviar.');
+      return;
+    }
+
+    const audio = new Blob(this.audioChunks, { type: audioType });
+    this.audioChunks = [];
+    this.voiceStatus.set('transcribing');
+    this.error.set(null);
+
+    try {
+      const response = await this.assistantService.sendVoiceMessage(audio, {
+        sessionId: this.sessionId() ?? undefined,
+        channel: 'web',
+      });
+
+      this.sessionId.set(response.task.sessionId);
+      this.realtimeService.joinSession(response.task.sessionId);
+      this.addMessage(response.task.userMessage);
+      this.loading.set(true);
+      this.scrollMessagesToBottom();
+      this.startTaskPolling(response.task.id);
+      void this.loadSessions();
+    } catch {
+      this.error.set('No se pudo procesar el mensaje de voz. Intenta nuevamente.');
+    } finally {
+      this.voiceStatus.set('idle');
+    }
+  }
+
+  private stopMediaStream(): void {
+    this.mediaRecorder = null;
+    this.mediaStream?.getTracks().forEach((track) => track.stop());
+    this.mediaStream = null;
+  }
 
   private startTaskPolling(taskId: string): void {
     this.clearTaskPolling();

@@ -8,3 +8,4 @@ export * from './openclaw/openclaw.contracts';
 export * from './permissions/permission.contracts';
 export * from './roles/role.contracts';
 export * from './users/user.contracts';
+export * from './voice/voice.contracts';
