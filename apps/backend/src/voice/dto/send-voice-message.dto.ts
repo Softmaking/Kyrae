@@ -11,6 +11,6 @@ export class SendVoiceMessageDto {
   conversationId?: string;
 
   @IsOptional()
-  @IsIn(['web'])
+  @IsIn(['web', 'mobile'])
   channel?: AssistantChannel;
 }

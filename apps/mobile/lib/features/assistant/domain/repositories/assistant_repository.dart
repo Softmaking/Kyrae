@@ -15,6 +15,11 @@ abstract class AssistantRepository {
 
   Future<Either<Failure, AssistantMessageTask>> findMessageTask(String taskId);
 
+  Future<Either<Failure, AssistantMessageTask>> sendVoiceMessage({
+    required String audioPath,
+    String? conversationId,
+  });
+
   Future<Either<Failure, AssistantSessionPage>> findSessions({
     int limit = 10,
     String? cursor,

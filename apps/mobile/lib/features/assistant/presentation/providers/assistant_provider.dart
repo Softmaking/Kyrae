@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,9 @@ import 'package:kyrae_mobile/features/assistant/domain/usecases/create_assistant
 import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_session_messages_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_sessions_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/get_assistant_message_task_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/send_assistant_voice_message_usecase.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 class AssistantState {
   const AssistantState({
@@ -22,6 +26,8 @@ class AssistantState {
     this.isLoadingSessions = false,
     this.isLoadingMoreSessions = false,
     this.isLoadingHistory = false,
+    this.isRecording = false,
+    this.isTranscribing = false,
     this.sessionsNextCursor,
     this.errorMessage,
   });
@@ -34,6 +40,8 @@ class AssistantState {
   final bool isLoadingSessions;
   final bool isLoadingMoreSessions;
   final bool isLoadingHistory;
+  final bool isRecording;
+  final bool isTranscribing;
   final String? sessionsNextCursor;
   final String? errorMessage;
 
@@ -49,6 +57,8 @@ class AssistantState {
     bool? isLoadingSessions,
     bool? isLoadingMoreSessions,
     bool? isLoadingHistory,
+    bool? isRecording,
+    bool? isTranscribing,
     String? sessionsNextCursor,
     String? errorMessage,
   }) {
@@ -66,6 +76,8 @@ class AssistantState {
       isLoadingMoreSessions:
           isLoadingMoreSessions ?? this.isLoadingMoreSessions,
       isLoadingHistory: isLoadingHistory ?? this.isLoadingHistory,
+      isRecording: isRecording ?? this.isRecording,
+      isTranscribing: isTranscribing ?? this.isTranscribing,
       sessionsNextCursor: clearSessionsNextCursor
           ? null
           : sessionsNextCursor ?? this.sessionsNextCursor,
@@ -78,6 +90,7 @@ class AssistantController extends Notifier<AssistantState> {
   @override
   AssistantState build() {
     _createTaskUseCase = ref.watch(createAssistantMessageTaskUseCaseProvider);
+    _sendVoiceUseCase = ref.watch(sendAssistantVoiceMessageUseCaseProvider);
     _getTaskUseCase = ref.watch(getAssistantMessageTaskUseCaseProvider);
     _findSessionsUseCase = ref.watch(findAssistantSessionsUseCaseProvider);
     _findSessionMessagesUseCase = ref.watch(
@@ -87,12 +100,16 @@ class AssistantController extends Notifier<AssistantState> {
     _realtimeDataSource = ref.watch(assistantRealtimeDataSourceProvider);
     _realtimeDataSource.setHandler(_handleRealtimeEvent);
     unawaited(_realtimeDataSource.connect());
+    ref.onDispose(_audioRecorder.dispose);
     return const AssistantState();
   }
 
   static const _sessionPageSize = 10;
 
+  final AudioRecorder _audioRecorder = AudioRecorder();
+
   late CreateAssistantMessageTaskUseCase _createTaskUseCase;
+  late SendAssistantVoiceMessageUseCase _sendVoiceUseCase;
   late GetAssistantMessageTaskUseCase _getTaskUseCase;
   late FindAssistantSessionsUseCase _findSessionsUseCase;
   late FindAssistantSessionMessagesUseCase _findSessionMessagesUseCase;
@@ -185,13 +202,15 @@ class AssistantController extends Notifier<AssistantState> {
       clearActiveTaskId: true,
       isSending: false,
       isLoadingHistory: false,
+      isRecording: false,
+      isTranscribing: false,
       errorMessage: null,
     );
   }
 
   Future<void> send(String message) async {
     final trimmed = message.trim();
-    if (trimmed.isEmpty || state.isSending) return;
+    if (trimmed.isEmpty || state.isSending || state.isRecording || state.isTranscribing) return;
 
     state = state.copyWith(isSending: true, errorMessage: null);
     final result = await _createTaskUseCase(
@@ -208,6 +227,75 @@ class AssistantController extends Notifier<AssistantState> {
           conversationId: task.conversationId,
           activeTaskId: task.id,
           messages: [...state.messages, task.userMessage],
+          errorMessage: null,
+        );
+        await _realtimeDataSource.joinSession(task.conversationId);
+        unawaited(loadSessions());
+        if (!_realtimeDataSource.isConnected) {
+          await _pollTask(task.id);
+        }
+      },
+    );
+  }
+
+  Future<void> startVoiceRecording() async {
+    if (state.isSending || state.isRecording || state.isTranscribing) return;
+
+    final hasPermission = await _audioRecorder.hasPermission();
+    if (!hasPermission) {
+      state = state.copyWith(errorMessage: 'No hay permiso para usar el micrófono.');
+      return;
+    }
+
+    try {
+      final directory = await getTemporaryDirectory();
+      final path = '${directory.path}/kyrae-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+      state = state.copyWith(isRecording: true, errorMessage: null);
+    } catch (_) {
+      state = state.copyWith(
+        isRecording: false,
+        errorMessage: 'No se pudo iniciar la grabación de voz.',
+      );
+    }
+  }
+
+  Future<void> stopVoiceRecordingAndSend() async {
+    if (!state.isRecording) return;
+
+    final path = await _audioRecorder.stop();
+    state = state.copyWith(isRecording: false);
+
+    if (path == null) {
+      state = state.copyWith(errorMessage: 'No se capturó audio para enviar.');
+      return;
+    }
+
+    state = state.copyWith(isTranscribing: true, errorMessage: null);
+    final result = await _sendVoiceUseCase(
+      audioPath: path,
+      conversationId: state.conversationId,
+    );
+    unawaited(File(path).delete().catchError((_) => File(path)));
+
+    await result.fold(
+      (failure) {
+        state = state.copyWith(
+          isSending: false,
+          isTranscribing: false,
+          errorMessage: failure.message,
+        );
+      },
+      (task) async {
+        state = state.copyWith(
+          conversationId: task.conversationId,
+          activeTaskId: task.id,
+          messages: [...state.messages, task.userMessage],
+          isSending: true,
+          isTranscribing: false,
           errorMessage: null,
         );
         await _realtimeDataSource.joinSession(task.conversationId);

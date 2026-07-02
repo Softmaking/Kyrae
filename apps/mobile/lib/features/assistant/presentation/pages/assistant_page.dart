@@ -41,6 +41,18 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     _scrollToBottom();
   }
 
+  Future<void> _toggleVoiceRecording() async {
+    final controller = ref.read(assistantControllerProvider.notifier);
+    final state = ref.read(assistantControllerProvider);
+
+    if (state.isRecording) {
+      await controller.stopVoiceRecordingAndSend();
+    } else {
+      await controller.startVoiceRecording();
+    }
+    _scrollToBottom();
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
@@ -80,6 +92,8 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
     ref.watch(appLifecycleProvider);
     final state = ref.watch(assistantControllerProvider);
+    final user = ref.watch(authControllerProvider).user;
+    final canUseVoice = user?.permissions.contains('ASSISTANT_VOICE_USE') ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.slate50,
@@ -106,6 +120,9 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                   if (state.isLoadingHistory) const _HistoryLoadingBanner(),
                   if (state.messages.isEmpty) const _EmptyState(),
                   ...state.messages.map(_MessageBubble.new),
+                  if (state.isRecording) const _VoiceStatusBubble(text: 'Grabando audio...'),
+                  if (state.isTranscribing)
+                    const _VoiceStatusBubble(text: 'Transcribiendo y enviando audio...'),
                   if (state.isSending) const _ThinkingBubble(),
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 12),
@@ -117,7 +134,11 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
             _MessageComposer(
               controller: _controller,
               isSending: state.isSending,
+              isRecording: state.isRecording,
+              isTranscribing: state.isTranscribing,
+              canUseVoice: canUseVoice,
               onSend: _send,
+              onVoice: _toggleVoiceRecording,
             ),
           ],
         ),
@@ -540,6 +561,36 @@ class _ThinkingBubble extends StatelessWidget {
   }
 }
 
+class _VoiceStatusBubble extends StatelessWidget {
+  const _VoiceStatusBubble({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.brandSoft,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.mic_rounded, color: AppColors.brandPrimary, size: 18),
+            const SizedBox(width: 8),
+            Text(text, style: const TextStyle(color: AppColors.slate700, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.message});
 
@@ -566,12 +617,20 @@ class _MessageComposer extends StatelessWidget {
   const _MessageComposer({
     required this.controller,
     required this.isSending,
+    required this.isRecording,
+    required this.isTranscribing,
+    required this.canUseVoice,
     required this.onSend,
+    required this.onVoice,
   });
 
   final TextEditingController controller;
   final bool isSending;
+  final bool isRecording;
+  final bool isTranscribing;
+  final bool canUseVoice;
   final VoidCallback onSend;
+  final VoidCallback onVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -590,7 +649,7 @@ class _MessageComposer extends StatelessWidget {
               minLines: 1,
               maxLines: 4,
               textInputAction: TextInputAction.send,
-              enabled: !isSending,
+              enabled: !isSending && !isRecording && !isTranscribing,
               decoration: const InputDecoration(
                 hintText: 'Escribe una instrucción...',
               ),
@@ -598,11 +657,34 @@ class _MessageComposer extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
+          if (canUseVoice) ...[
+            SizedBox(
+              height: 52,
+              width: 52,
+              child: OutlinedButton(
+                onPressed: isSending || isTranscribing ? null : onVoice,
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  side: BorderSide(
+                    color: isRecording ? AppColors.brandPrimary : AppColors.slate300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Icon(
+                  isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                  color: isRecording ? AppColors.brandPrimary : AppColors.slate600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           SizedBox(
             height: 52,
             width: 52,
             child: FilledButton(
-              onPressed: isSending ? null : onSend,
+              onPressed: isSending || isRecording || isTranscribing ? null : onSend,
               style: FilledButton.styleFrom(
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(

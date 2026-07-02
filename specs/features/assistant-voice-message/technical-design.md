@@ -70,6 +70,15 @@ The web client shows local voice states:
 
 The returned task is added to the same chat state used by text messages.
 
+## Mobile
+
+The Flutter assistant page uses the `record` package to capture audio locally and `path_provider` for a temporary file path. The mobile client sends the recorded audio to `POST /voice/messages` with `channel=mobile` and reuses the existing assistant task, realtime, polling, and local notification behavior.
+
+Native permissions:
+
+- Android: `android.permission.RECORD_AUDIO`
+- iOS: `NSMicrophoneUsageDescription`
+
 ## Security
 
 - Voice requires a dedicated `ASSISTANT_VOICE_USE` permission.

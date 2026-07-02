@@ -21,7 +21,7 @@ It includes:
 
 The IAM and security foundation must remain reusable. Unrelated business modules must not be added unless a specification explicitly requires them.
 
-`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Web voice input is implemented through the backend voice STT adapter and can call `apps/stt-gateway` for cloud transcription. Mobile voice interaction and voice output remain documented target capabilities only.
+`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Web and mobile voice input are implemented through the backend voice STT adapter and can call `apps/stt-gateway` for cloud transcription. Voice output remains a documented target capability only.
 
 ## Current Modules
 
@@ -63,10 +63,10 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - home (dashboard)
 - profile
 - assistant text chat
+- assistant voice input
 
 Documented target capabilities, not implemented in mobile beta:
 
-- voice input
 - voice output
 
 Out of scope for mobile beta:
@@ -128,7 +128,7 @@ Current implementation:
 - `/messages` accepts authenticated web text messages.
 - `/messages/tasks` accepts authenticated asynchronous assistant text-message tasks.
 - `/messages/tasks/:id` returns task status and the assistant response when completed.
-- `/voice/messages` accepts authenticated web audio, transcribes it, and creates an assistant text-message task.
+- `/voice/messages` accepts authenticated web/mobile audio, transcribes it, and creates an assistant text-message task.
 - `/sessions` lists authenticated assistant sessions with cursor pagination and a default page size of 10.
 - `/sessions/:id/messages` returns the persisted message history for one owned assistant session.
 - Socket.IO realtime events expose assistant message status for web and mobile clients.
@@ -150,7 +150,6 @@ Not implemented:
 
 - OpenClaw runtime inside this repository.
 - WebSocket streaming.
-- Mobile voice input or output.
 - Voice output.
 - External messaging channels.
 - Agent task execution beyond adapter request/response.
@@ -278,8 +277,8 @@ Frontend API base URL source:
 - mobile client lives in `apps/mobile`
 - mobile consumes backend APIs without bypassing auth/authorization rules
 - mobile refresh token flow is implemented; expired tokens are automatically refreshed via AuthInterceptor
-- beta scope includes auth, home (dashboard), profile, and assistant text chat
-- voice interaction remains a target capability only and must not be implemented without approved feature artifacts
+- beta scope includes auth, home (dashboard), profile, assistant text chat, and assistant voice input
+- voice output remains a target capability only and must not be implemented without approved feature artifacts
 - mobile modules outside beta scope are intentionally not implemented yet
 
 ## Backend Rules

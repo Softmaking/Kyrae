@@ -1,16 +1,14 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
+  static const String _localNetworkBaseUrl = 'http://192.168.100.43:3000';
+
   static String get baseUrl {
     if (kIsWeb) {
       return 'https://lightbox-books-allied-manner.trycloudflare.com';
     }
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3000';
-    }
-
-    return 'https://lightbox-books-allied-manner.trycloudflare.com';
+    return _localNetworkBaseUrl;
   }
 
   static const String login = '/auth/login';

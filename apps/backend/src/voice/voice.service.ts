@@ -22,6 +22,7 @@ export class VoiceService {
     'audio/mp4',
     'audio/ogg',
     'audio/x-m4a',
+    'application/octet-stream',
   ]);
 
   constructor(

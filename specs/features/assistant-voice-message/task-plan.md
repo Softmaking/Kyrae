@@ -30,6 +30,14 @@
 - Add voice status UI.
 - Reuse existing assistant task/realtime/polling flow after the voice endpoint returns a task.
 
+## Mobile
+
+- Add recording dependencies.
+- Add native microphone permissions.
+- Add voice message method in assistant data/domain layers.
+- Add voice state and microphone action in assistant provider/page.
+- Reuse existing task/realtime/polling flow after the voice endpoint returns a task.
+
 ## Documentation
 
 - Update `docs/system-context.md`.
@@ -43,3 +51,5 @@
 - `pnpm frontend:build`
 - `pnpm stt-gateway:build`
 - `pnpm stt-gateway:lint`
+- `flutter analyze`
+- `flutter test`

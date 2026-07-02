@@ -18,6 +18,7 @@ Implemented scope:
 - Configurable `VOICE_STT_MODE=mock|http` adapter.
 - `apps/stt-gateway` with OpenAI transcription provider for the HTTP STT adapter.
 - Web microphone recording and automatic voice-message submission.
+- Mobile microphone recording and automatic voice-message submission.
 - Reuse of existing assistant task, realtime, and polling behavior.
 
 ## Validation
@@ -28,3 +29,5 @@ Implemented scope:
 - `pnpm frontend:build` passed with the existing bundle budget warning.
 - `pnpm stt-gateway:build` passed.
 - `pnpm stt-gateway:lint` passed.
+- `flutter analyze` passed.
+- `flutter test` passed.

@@ -15,6 +15,14 @@
 - Manually verify voice upload creates a user message from the transcript.
 - Manually verify assistant response appears through existing realtime/polling flow.
 
+## Mobile
+
+- Verify `flutter analyze` and `flutter test` pass.
+- Manually verify microphone permission prompt.
+- Manually verify recording start/stop behavior.
+- Manually verify voice upload creates a user message from the transcript.
+- Manually verify assistant response appears through existing realtime/polling flow.
+
 ## Security
 
 - Verify the endpoint requires authentication.
