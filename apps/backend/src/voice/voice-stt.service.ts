@@ -32,6 +32,13 @@ export class VoiceSttService {
       throw new BadGatewayException('El servicio de transcripción no está configurado.');
     }
 
+    const apiKey = this.configService.get<string>('VOICE_STT_API_KEY');
+    if (!apiKey) {
+      throw new BadGatewayException(
+        'La autenticación del servicio de transcripción no está configurada.'
+      );
+    }
+
     const timeoutMs = Number(this.configService.get<string>('VOICE_STT_TIMEOUT_MS', '30000'));
     const controller = new AbortController();
     const timeout = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -47,6 +54,7 @@ export class VoiceSttService {
 
       const response = await fetch(`${baseUrl.replace(/\/$/, '')}/transcribe`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
         body: formData,
         signal: controller.signal,
       });

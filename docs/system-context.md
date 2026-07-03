@@ -21,7 +21,7 @@ It includes:
 
 The IAM and security foundation must remain reusable. Unrelated business modules must not be added unless a specification explicitly requires them.
 
-`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Web and mobile voice input are implemented through the backend voice STT adapter and can call `apps/stt-gateway` for cloud transcription. Voice output remains a documented target capability only.
+`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Web and mobile voice input are implemented through the backend voice STT adapter. Clients call Kyrae backend only; `apps/stt-gateway` is an internal backend dependency for cloud transcription and must not be called directly by web or mobile clients. Voice output remains a documented target capability only.
 
 ## Current Modules
 
@@ -141,8 +141,8 @@ Current implementation:
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
 - `VOICE_STT_MODE=mock` returns a deterministic local transcription for development.
-- `VOICE_STT_MODE=http` sends audio to `POST {VOICE_STT_BASE_URL}/transcribe`.
-- `apps/stt-gateway` exposes `POST /transcribe` and currently supports `STT_PROVIDER=openai`.
+- `VOICE_STT_MODE=http` sends audio from the Kyrae backend to `POST {VOICE_STT_BASE_URL}/transcribe` with an internal bearer token from `VOICE_STT_API_KEY`.
+- `apps/stt-gateway` exposes internal `POST /transcribe`, requires `STT_GATEWAY_API_KEY`, defaults to `HOST=127.0.0.1`, and currently supports `STT_PROVIDER=openai`.
 - Mobile polls asynchronous assistant tasks, can show a local best-effort notification when a response completes while the app is not active, and loads assistant session history through a paginated bottom sheet.
 - Mobile joins assistant sessions over Socket.IO when available and keeps polling as a fallback.
 
@@ -313,12 +313,15 @@ Voice STT adapter variables:
 
 - `VOICE_STT_MODE`
 - `VOICE_STT_BASE_URL`
+- `VOICE_STT_API_KEY`
 - `VOICE_STT_TIMEOUT_MS`
 - `VOICE_MAX_AUDIO_MB`
 
 STT gateway variables:
 
 - `STT_PROVIDER`
+- `HOST`
+- `STT_GATEWAY_API_KEY`
 - `OPENAI_API_KEY`
 - `OPENAI_TRANSCRIPTION_MODEL`
 - `OPENAI_TRANSCRIPTION_LANGUAGE`

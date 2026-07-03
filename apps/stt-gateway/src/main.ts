@@ -14,7 +14,10 @@ async function bootstrap() {
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
-  await app.listen(configService.get<number>('PORT', 3101));
+  await app.listen(
+    configService.get<number>('PORT', 3101),
+    configService.get<string>('HOST', '127.0.0.1')
+  );
 }
 
 void bootstrap();

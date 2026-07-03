@@ -20,6 +20,8 @@
 
 - Add `apps/stt-gateway` Nest app.
 - Add `POST /transcribe` endpoint.
+- Protect `POST /transcribe` with an internal API key.
+- Bind the gateway to localhost by default.
 - Add OpenAI transcription provider.
 - Add root workspace scripts for gateway development, build, and lint.
 

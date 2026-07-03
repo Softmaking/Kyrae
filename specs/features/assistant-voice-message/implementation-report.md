@@ -17,6 +17,7 @@ Implemented scope:
 - `voice_events` persistence.
 - Configurable `VOICE_STT_MODE=mock|http` adapter.
 - `apps/stt-gateway` with OpenAI transcription provider for the HTTP STT adapter.
+- Internal STT Gateway protection with localhost binding and bearer API key validation.
 - Web microphone recording and automatic voice-message submission.
 - Mobile microphone recording and automatic voice-message submission.
 - Reuse of existing assistant task, realtime, and polling behavior.

@@ -22,7 +22,7 @@ The endpoint is protected by `JwtAuthGuard`, `PermissionsGuard`, and `ASSISTANT_
 The STT adapter supports:
 
 - `VOICE_STT_MODE=mock`: deterministic local transcription for development.
-- `VOICE_STT_MODE=http`: POSTs audio to an external STT-compatible service.
+- `VOICE_STT_MODE=http`: POSTs audio from the Kyrae backend to an internal STT-compatible service using an internal bearer token.
 
 The HTTP adapter sends `multipart/form-data` with `audio` and expects a JSON response containing `transcript` or `text`.
 
@@ -30,12 +30,16 @@ The HTTP adapter sends `multipart/form-data` with `audio` and expects a JSON res
 
 The monorepo includes `apps/stt-gateway` as the first HTTP STT provider.
 
+- `POST /transcribe` accepts multipart audio.
+- `POST /transcribe` requires `Authorization: Bearer <STT_GATEWAY_API_KEY>`.
+- The gateway defaults to `HOST=127.0.0.1` and is an internal backend dependency, not a public client API.
+
 Current provider:
 
 - `STT_PROVIDER=openai`
 - OpenAI audio transcription API
 
-Future local providers can be added behind the same `POST /transcribe` contract without changing Kyrae backend or frontend.
+Future local providers can be added behind the same internal `POST /transcribe` contract without changing Kyrae backend, frontend, or mobile clients.
 
 ## Persistence
 
@@ -82,6 +86,8 @@ Native permissions:
 ## Security
 
 - Voice requires a dedicated `ASSISTANT_VOICE_USE` permission.
-- Audio is sent only to Kyrae backend.
+- Web and mobile clients send audio only to Kyrae backend.
+- Kyrae backend authenticates to the STT Gateway with `VOICE_STT_API_KEY`.
+- STT Gateway validates `STT_GATEWAY_API_KEY` before accepting transcription requests.
 - Backend validates file presence, size, and supported MIME type.
 - Temporary audio files are deleted after processing.

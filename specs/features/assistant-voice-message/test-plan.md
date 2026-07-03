@@ -28,3 +28,5 @@
 - Verify the endpoint requires authentication.
 - Verify the endpoint requires `ASSISTANT_VOICE_USE`.
 - Verify unsupported or missing audio is rejected.
+- Verify STT Gateway rejects `POST /transcribe` without the internal API key.
+- Verify Kyrae backend can call STT Gateway when `VOICE_STT_API_KEY` matches `STT_GATEWAY_API_KEY`.

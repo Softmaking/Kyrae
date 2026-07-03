@@ -82,7 +82,7 @@ Documented target capabilities:
 - OpenClaw principal assistant agent
 - voice interaction
 
-OpenClaw currently has a backend text-message adapter. Web and mobile voice input are implemented through the backend voice STT adapter. Voice output is not implemented yet.
+OpenClaw currently has a backend text-message adapter. Web and mobile voice input are implemented through the backend voice STT adapter. Web and mobile clients must call Kyrae backend only and must not call the STT Gateway directly. Voice output is not implemented yet.
 
 ## API Endpoints
 
@@ -195,7 +195,7 @@ Rules:
 - Mobile assistant session history is implemented in `apps/mobile/lib/features/assistant/` and uses `GET /sessions` with a default page size of 10 plus a manual "Ver más" flow.
 - Web and mobile assistant realtime clients consume Socket.IO events for received, processing, completed, failed, and session updated states.
 - Web and mobile voice input consume `POST /voice/messages`; the backend transcribes audio and reuses the existing assistant message task flow.
-- Kyrae backend calls the configured STT provider through `VOICE_STT_BASE_URL`; `apps/stt-gateway` is the current HTTP STT provider for OpenAI cloud transcription.
+- Kyrae backend calls the configured STT provider through `VOICE_STT_BASE_URL` using `VOICE_STT_API_KEY`; `apps/stt-gateway` is the current internal HTTP STT provider for OpenAI cloud transcription and requires `STT_GATEWAY_API_KEY` on `POST /transcribe`.
 - Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 

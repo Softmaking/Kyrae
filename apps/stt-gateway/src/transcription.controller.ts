@@ -3,10 +3,12 @@ import {
   Controller,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { InternalApiKeyGuard } from './internal-api-key.guard';
 import { TranscriptionService, TranscriptionResponse } from './transcription.service';
 import type { UploadedAudioFile } from './uploaded-audio-file';
 
@@ -18,6 +20,7 @@ export class TranscriptionController {
   ) {}
 
   @Post('transcribe')
+  @UseGuards(InternalApiKeyGuard)
   @UseInterceptors(
     FileInterceptor('audio', {
       limits: { fileSize: Number(process.env.STT_MAX_AUDIO_MB ?? 10) * 1024 * 1024 },

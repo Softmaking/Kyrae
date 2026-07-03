@@ -25,6 +25,8 @@ Voice -> audio -> backend -> STT -> text -> existing message task flow -> Socket
 - The backend must expose `POST /voice/messages` for authenticated voice messages.
 - The endpoint must require `ASSISTANT_VOICE_USE`.
 - The backend must transcribe the audio through a configurable STT adapter.
+- Web and mobile clients must call Kyrae backend only and must not call the STT Gateway directly.
+- The STT Gateway must require internal backend authentication for transcription requests.
 - The backend must create an assistant message task using the existing message flow after transcription.
 - The frontend must show recording, transcribing, and sending states.
 - The mobile client must show recording, transcribing, and sending states.
@@ -44,3 +46,4 @@ Voice -> audio -> backend -> STT -> text -> existing message task flow -> Socket
 - STT mode is configurable as `mock` or `http`.
 - The MVP sends the transcription automatically to the assistant message task flow.
 - Permission is `ASSISTANT_VOICE_USE`.
+- `apps/stt-gateway` is an internal backend dependency protected by an API key.
