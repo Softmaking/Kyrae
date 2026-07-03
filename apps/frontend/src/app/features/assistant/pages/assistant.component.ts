@@ -20,6 +20,7 @@ interface AssistantMessageBlock {
 }
 
 type VoiceStatus = 'idle' | 'recording' | 'transcribing';
+type VoiceOutputStatus = 'idle' | 'synthesizing' | 'playing' | 'paused' | 'failed';
 
 @Component({
   selector: 'app-assistant',
@@ -45,6 +46,9 @@ export class AssistantComponent implements OnInit, OnDestroy {
   readonly sessionId = signal<string | null>(null);
   readonly sessionsNextCursor = signal<string | null>(null);
   readonly voiceStatus = signal<VoiceStatus>('idle');
+  readonly voiceOutputEnabled = signal(false);
+  readonly voiceOutputStatus = signal<VoiceOutputStatus>('idle');
+  readonly voiceOutputError = signal<string | null>(null);
 
   private readonly sessionPageSize = 10;
   private readonly taskPollIntervalMs = 3000;
@@ -53,6 +57,9 @@ export class AssistantComponent implements OnInit, OnDestroy {
   private mediaRecorder: MediaRecorder | null = null;
   private mediaStream: MediaStream | null = null;
   private audioChunks: Blob[] = [];
+  private currentVoiceAudio: HTMLAudioElement | null = null;
+  private currentVoiceAudioUrl: string | null = null;
+  private readonly spokenMessageIds = new Set<string>();
 
   draft = '';
 
@@ -63,6 +70,9 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.realtimeService.on('assistant.agent.completed', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.agent.failed', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.session.updated', this.handleRealtimeEvent);
+    this.realtimeService.on('voice.synthesizing', this.handleVoiceRealtimeEvent);
+    this.realtimeService.on('voice.ready', this.handleVoiceRealtimeEvent);
+    this.realtimeService.on('voice.failed', this.handleVoiceRealtimeEvent);
     void this.loadSessions();
   }
 
@@ -72,18 +82,54 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.realtimeService.off('assistant.agent.completed', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.agent.failed', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.session.updated', this.handleRealtimeEvent);
+    this.realtimeService.off('voice.synthesizing', this.handleVoiceRealtimeEvent);
+    this.realtimeService.off('voice.ready', this.handleVoiceRealtimeEvent);
+    this.realtimeService.off('voice.failed', this.handleVoiceRealtimeEvent);
     this.clearTaskPolling();
     this.stopMediaStream();
+    this.stopSpokenResponse();
   }
 
   canUseVoice(): boolean {
     return this.authService.hasPermission('ASSISTANT_VOICE_USE');
   }
 
+  canUseVoiceOutput(): boolean {
+    return this.authService.hasPermission('ASSISTANT_VOICE_OUTPUT_USE');
+  }
+
   voiceButtonLabel(): string {
     if (this.voiceStatus() === 'recording') return 'Detener grabación';
     if (this.voiceStatus() === 'transcribing') return 'Transcribiendo...';
     return 'Hablar';
+  }
+
+  toggleVoiceOutput(): void {
+    if (!this.canUseVoiceOutput()) return;
+    this.voiceOutputEnabled.update((enabled) => !enabled);
+    if (!this.voiceOutputEnabled()) this.stopSpokenResponse();
+  }
+
+  pauseSpokenResponse(): void {
+    if (!this.currentVoiceAudio || this.voiceOutputStatus() !== 'playing') return;
+    this.currentVoiceAudio.pause();
+    this.voiceOutputStatus.set('paused');
+  }
+
+  resumeSpokenResponse(): void {
+    if (!this.currentVoiceAudio || this.voiceOutputStatus() !== 'paused') return;
+    void this.currentVoiceAudio.play();
+    this.voiceOutputStatus.set('playing');
+  }
+
+  stopSpokenResponse(): void {
+    this.currentVoiceAudio?.pause();
+    this.currentVoiceAudio = null;
+    if (this.currentVoiceAudioUrl) URL.revokeObjectURL(this.currentVoiceAudioUrl);
+    this.currentVoiceAudioUrl = null;
+    if (this.voiceOutputStatus() === 'playing' || this.voiceOutputStatus() === 'paused') {
+      this.voiceOutputStatus.set('idle');
+    }
   }
 
   async loadSessions(): Promise<void> {
@@ -140,6 +186,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
   }
 
   newSession(): void {
+    this.stopSpokenResponse();
     this.sessionId.set(null);
     this.messages.set([]);
     this.error.set(null);
@@ -309,12 +356,14 @@ export class AssistantComponent implements OnInit, OnDestroy {
     }
 
     if (event.status === 'completed' && event.role === 'assistant' && event.content) {
-      this.addMessage(this.eventToMessage(event));
+      const message = this.eventToMessage(event);
+      const added = this.addMessage(message);
       this.completeActiveTask(event.taskId);
       this.loading.set(false);
       this.error.set(null);
       this.scrollMessagesToBottom();
       void this.loadSessions();
+      if (added) void this.speakAssistantMessage(message);
       return;
     }
 
@@ -328,6 +377,26 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.loading.set(false);
       this.error.set(event.errorMessage ?? 'Kyrae no pudo procesar la solicitud.');
       void this.loadSessions();
+    }
+  };
+
+  private readonly handleVoiceRealtimeEvent = (event: AssistantRealtimeEvent): void => {
+    if (event.sessionId !== this.sessionId()) return;
+
+    if (event.status === 'synthesizing') {
+      this.voiceOutputStatus.set('synthesizing');
+      this.voiceOutputError.set(null);
+      return;
+    }
+
+    if (event.status === 'ready') {
+      this.voiceOutputError.set(null);
+      return;
+    }
+
+    if (event.status === 'failed') {
+      this.voiceOutputStatus.set('failed');
+      this.voiceOutputError.set(event.errorMessage ?? 'No se pudo generar la respuesta hablada.');
     }
   };
 
@@ -392,13 +461,14 @@ export class AssistantComponent implements OnInit, OnDestroy {
       if (this.activeTaskId !== taskId) return;
 
       if (task.status === 'completed' && task.assistantMessage) {
-        this.addMessage(task.assistantMessage);
+        const added = this.addMessage(task.assistantMessage);
         this.completeActiveTask(taskId);
         this.sessionId.set(task.sessionId);
         this.loading.set(false);
         this.error.set(null);
         this.scrollMessagesToBottom();
         void this.loadSessions();
+        if (added) void this.speakAssistantMessage(task.assistantMessage);
         return;
       }
 
@@ -441,11 +511,51 @@ export class AssistantComponent implements OnInit, OnDestroy {
     });
   }
 
-  private addMessage(message: AssistantMessageDto): void {
+  private addMessage(message: AssistantMessageDto): boolean {
+    let added = false;
     this.messages.update((current) => {
       if (current.some((item) => item.id === message.id)) return current;
+      added = true;
       return [...current, message];
     });
+    return added;
+  }
+
+  private async speakAssistantMessage(message: AssistantMessageDto): Promise<void> {
+    if (!this.voiceOutputEnabled() || !this.canUseVoiceOutput()) return;
+    if (message.role !== 'assistant' || !message.content.trim()) return;
+    if (this.spokenMessageIds.has(message.id)) return;
+
+    this.spokenMessageIds.add(message.id);
+    this.stopSpokenResponse();
+    this.voiceOutputStatus.set('synthesizing');
+    this.voiceOutputError.set(null);
+
+    try {
+      const audio = await this.assistantService.speak({
+        text: message.content,
+        sessionId: message.sessionId,
+        messageId: message.id,
+        channel: 'web',
+      });
+      const url = URL.createObjectURL(audio);
+      const audioElement = new Audio(url);
+      this.currentVoiceAudio = audioElement;
+      this.currentVoiceAudioUrl = url;
+      audioElement.onended = () => {
+        this.stopSpokenResponse();
+      };
+      audioElement.onerror = () => {
+        this.stopSpokenResponse();
+        this.voiceOutputStatus.set('failed');
+        this.voiceOutputError.set('No se pudo reproducir la respuesta hablada.');
+      };
+      await audioElement.play();
+      this.voiceOutputStatus.set('playing');
+    } catch {
+      this.voiceOutputStatus.set('failed');
+      this.voiceOutputError.set('No se pudo generar la respuesta hablada.');
+    }
   }
 
   private eventToMessage(event: AssistantRealtimeEvent): AssistantMessageDto {

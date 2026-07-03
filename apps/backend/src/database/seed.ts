@@ -37,6 +37,7 @@ const DEFAULT_PERMISSIONS = [
   'CONFIGURATION_DELETE',
   'ASSISTANT_CHAT_USE',
   'ASSISTANT_VOICE_USE',
+  'ASSISTANT_VOICE_OUTPUT_USE',
 ];
 
 async function seed(): Promise<void> {

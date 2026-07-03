@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:kyrae_mobile/core/constants/api_constants.dart';
 import 'package:kyrae_mobile/core/errors/exceptions.dart';
 import 'package:kyrae_mobile/core/network/api_client.dart';
 import 'package:kyrae_mobile/features/assistant/data/models/assistant_message_model.dart';
+import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
 
 class AssistantRemoteDataSource {
   AssistantRemoteDataSource(this._apiClient);
@@ -94,6 +97,38 @@ class AssistantRemoteDataSource {
     } on DioException catch (error) {
       throw ServerException(
         _extractMessage(error, fallback: 'No fue posible enviar el audio'),
+      );
+    }
+  }
+
+  Future<AssistantVoiceAudio> speakAssistantMessage({
+    required String text,
+    required String conversationId,
+    required String messageId,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post<List<int>>(
+        '/voice/speak',
+        data: <String, dynamic>{
+          'text': text,
+          'sessionId': conversationId,
+          'messageId': messageId,
+          'channel': 'mobile',
+        },
+        options: Options(
+          receiveTimeout: null,
+          sendTimeout: null,
+          responseType: ResponseType.bytes,
+        ),
+      );
+
+      return AssistantVoiceAudio(
+        bytes: Uint8List.fromList(response.data ?? const []),
+        mimeType: response.headers.value('content-type') ?? 'audio/mpeg',
+      );
+    } on DioException catch (error) {
+      throw ServerException(
+        _extractMessage(error, fallback: 'No fue posible generar la respuesta hablada'),
       );
     }
   }

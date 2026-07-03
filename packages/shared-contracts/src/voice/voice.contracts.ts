@@ -1,6 +1,29 @@
 import type { AssistantChannel, AssistantMessageTaskDto } from '../openclaw/openclaw.contracts';
 
-export type VoiceEventStatus = 'recording' | 'stopped' | 'transcribing' | 'transcribed' | 'failed';
+export type VoiceEventStatus =
+  | 'recording'
+  | 'stopped'
+  | 'transcribing'
+  | 'transcribed'
+  | 'synthesizing'
+  | 'ready'
+  | 'failed';
+
+export type VoiceOutputStatus = 'synthesizing' | 'ready' | 'failed';
+
+export interface SendVoiceSpeakCommand {
+  text: string;
+  sessionId?: string;
+  messageId?: string;
+  channel?: AssistantChannel;
+}
+
+export interface VoiceSpeakMetadata {
+  voiceEventId: string;
+  audioMimeType: string;
+  audioSizeBytes: number;
+  provider: string;
+}
 
 export interface SendVoiceMessageResponse {
   transcript: string;

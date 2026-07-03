@@ -20,6 +20,7 @@ import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_s
 import 'package:kyrae_mobile/features/assistant/domain/usecases/get_assistant_message_task_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/send_assistant_voice_message_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/send_assistant_message_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/speak_assistant_message_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/presentation/providers/assistant_provider.dart';
 import 'package:kyrae_mobile/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:kyrae_mobile/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -165,6 +166,12 @@ final sendAssistantVoiceMessageUseCaseProvider =
     Provider<SendAssistantVoiceMessageUseCase>((ref) {
       final repository = ref.watch(assistantRepositoryProvider);
       return SendAssistantVoiceMessageUseCase(repository);
+    });
+
+final speakAssistantMessageUseCaseProvider =
+    Provider<SpeakAssistantMessageUseCase>((ref) {
+      final repository = ref.watch(assistantRepositoryProvider);
+      return SpeakAssistantMessageUseCase(repository);
     });
 
 final findAssistantSessionsUseCaseProvider =

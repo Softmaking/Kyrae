@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:equatable/equatable.dart';
 
 enum AssistantMessageRole { user, assistant, system }
@@ -132,4 +134,14 @@ class AssistantSessionMessages extends Equatable {
 
   @override
   List<Object?> get props => [session, messages];
+}
+
+class AssistantVoiceAudio extends Equatable {
+  const AssistantVoiceAudio({required this.bytes, required this.mimeType});
+
+  final Uint8List bytes;
+  final String mimeType;
+
+  @override
+  List<Object?> get props => [bytes, mimeType];
 }

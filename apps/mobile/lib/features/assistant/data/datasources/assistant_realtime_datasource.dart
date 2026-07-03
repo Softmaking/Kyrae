@@ -67,7 +67,10 @@ class AssistantRealtimeDataSource {
     for (final eventName in _eventNames) {
       socket.on(eventName, (payload) {
         if (payload is Map) {
-          _handler?.call(Map<String, dynamic>.from(payload));
+          _handler?.call({
+            ...Map<String, dynamic>.from(payload),
+            'eventName': eventName,
+          });
         }
       });
     }
@@ -80,4 +83,7 @@ const _eventNames = [
   'assistant.agent.completed',
   'assistant.agent.failed',
   'assistant.session.updated',
+  'voice.synthesizing',
+  'voice.ready',
+  'voice.failed',
 ];

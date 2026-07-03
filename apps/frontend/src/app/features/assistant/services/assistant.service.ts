@@ -10,6 +10,7 @@ import type {
   SendAssistantMessageCommand,
   SendAssistantMessageResponse,
   SendVoiceMessageResponse,
+  SendVoiceSpeakCommand,
 } from '../models/assistant.model';
 
 @Injectable({ providedIn: 'root' })
@@ -47,6 +48,12 @@ export class AssistantService {
 
     return firstValueFrom(
       this.http.post<SendVoiceMessageResponse>(`${this.apiBaseUrl}/voice/messages`, formData)
+    );
+  }
+
+  async speak(command: SendVoiceSpeakCommand): Promise<Blob> {
+    return firstValueFrom(
+      this.http.post(`${this.apiBaseUrl}/voice/speak`, command, { responseType: 'blob' })
     );
   }
 

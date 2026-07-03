@@ -4,6 +4,7 @@ import 'package:kyrae_mobile/app/di/providers.dart';
 import 'package:kyrae_mobile/app/theme/app_theme.dart';
 import 'package:kyrae_mobile/core/lifecycle/app_lifecycle_provider.dart';
 import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
+import 'package:kyrae_mobile/features/assistant/presentation/providers/assistant_provider.dart';
 
 class AssistantPage extends ConsumerStatefulWidget {
   const AssistantPage({super.key});
@@ -53,6 +54,18 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     _scrollToBottom();
   }
 
+  Future<void> _pauseSpokenResponse() async {
+    await ref.read(assistantControllerProvider.notifier).pauseSpokenResponse();
+  }
+
+  Future<void> _resumeSpokenResponse() async {
+    await ref.read(assistantControllerProvider.notifier).resumeSpokenResponse();
+  }
+
+  Future<void> _stopSpokenResponse() async {
+    await ref.read(assistantControllerProvider.notifier).stopSpokenResponse();
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
@@ -94,6 +107,8 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     final state = ref.watch(assistantControllerProvider);
     final user = ref.watch(authControllerProvider).user;
     final canUseVoice = user?.permissions.contains('ASSISTANT_VOICE_USE') ?? false;
+    final canUseVoiceOutput =
+        user?.permissions.contains('ASSISTANT_VOICE_OUTPUT_USE') ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.slate50,
@@ -131,6 +146,18 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                 ],
               ),
             ),
+            if (canUseVoiceOutput)
+              _VoiceOutputControls(
+                isEnabled: state.isVoiceOutputEnabled,
+                status: state.voiceOutputStatus,
+                errorMessage: state.voiceOutputError,
+                onToggle: () => ref
+                    .read(assistantControllerProvider.notifier)
+                    .toggleVoiceOutput(),
+                onPause: _pauseSpokenResponse,
+                onResume: _resumeSpokenResponse,
+                onStop: _stopSpokenResponse,
+              ),
             _MessageComposer(
               controller: _controller,
               isSending: state.isSending,
@@ -140,6 +167,109 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
               onSend: _send,
               onVoice: _toggleVoiceRecording,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VoiceOutputControls extends StatelessWidget {
+  const _VoiceOutputControls({
+    required this.isEnabled,
+    required this.status,
+    required this.errorMessage,
+    required this.onToggle,
+    required this.onPause,
+    required this.onResume,
+    required this.onStop,
+  });
+
+  final bool isEnabled;
+  final VoiceOutputStatus status;
+  final String? errorMessage;
+  final VoidCallback onToggle;
+  final Future<void> Function() onPause;
+  final Future<void> Function() onResume;
+  final Future<void> Function() onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusText = switch (status) {
+      VoiceOutputStatus.synthesizing => 'Generando voz...',
+      VoiceOutputStatus.playing => 'Reproduciendo respuesta...',
+      VoiceOutputStatus.paused => 'Reproducción pausada.',
+      VoiceOutputStatus.failed => errorMessage ?? 'No se pudo generar voz.',
+      VoiceOutputStatus.idle => isEnabled
+          ? 'Lista para leer la próxima respuesta.'
+          : 'Respuesta hablada desactivada.',
+    };
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      color: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.slate50,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.slate200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.volume_up_rounded, color: AppColors.brandPrimary, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Respuesta hablada',
+                    style: TextStyle(
+                      color: AppColors.slate900,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Switch(value: isEnabled, onChanged: (_) => onToggle()),
+              ],
+            ),
+            Text(
+              statusText,
+              style: TextStyle(
+                color: status == VoiceOutputStatus.failed
+                    ? const Color(0xFFB91C1C)
+                    : AppColors.slate600,
+                fontSize: 12,
+              ),
+            ),
+            if (status == VoiceOutputStatus.playing || status == VoiceOutputStatus.paused) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: status == VoiceOutputStatus.playing ? onPause : onResume,
+                      icon: Icon(
+                        status == VoiceOutputStatus.playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                      ),
+                      label: Text(status == VoiceOutputStatus.playing ? 'Pausar' : 'Reanudar'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onStop,
+                      icon: const Icon(Icons.stop_rounded),
+                      label: const Text('Detener'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

@@ -76,13 +76,14 @@ Current official beta scope:
 - profile
 - assistant text chat
 - assistant voice input
+- assistant voice output
 
 Documented target capabilities:
 
 - OpenClaw principal assistant agent
 - voice interaction
 
-OpenClaw currently has a backend text-message adapter. Web and mobile voice input are implemented through the backend voice STT adapter. Web and mobile clients must call Kyrae backend only and must not call the STT Gateway directly. Voice output is not implemented yet.
+OpenClaw currently has a backend text-message adapter. Web and mobile voice input are implemented through the backend voice STT adapter. Web and mobile clients must call Kyrae backend only and must not call the STT Gateway directly. Web and mobile voice output are implemented through the backend voice TTS adapter.
 
 ## API Endpoints
 
@@ -102,7 +103,7 @@ Audit list pagination shape is defined in `packages/shared-contracts/src/audit/a
 
 Assistant message and task shapes are defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /messages`, `POST /messages/tasks`, and `GET /messages/tasks/:id`.
 
-Assistant voice message shapes are defined in `packages/shared-contracts/src/voice/voice.contracts.ts` and implemented by `POST /voice/messages`.
+Assistant voice message and voice output shapes are defined in `packages/shared-contracts/src/voice/voice.contracts.ts` and implemented by `POST /voice/messages` and `POST /voice/speak`.
 
 When changing an endpoint:
 
@@ -195,6 +196,7 @@ Rules:
 - Mobile assistant session history is implemented in `apps/mobile/lib/features/assistant/` and uses `GET /sessions` with a default page size of 10 plus a manual "Ver más" flow.
 - Web and mobile assistant realtime clients consume Socket.IO events for received, processing, completed, failed, and session updated states.
 - Web and mobile voice input consume `POST /voice/messages`; the backend transcribes audio and reuses the existing assistant message task flow.
+- Web and mobile voice output consume `POST /voice/speak`; the backend generates an immediate audio blob through the configured TTS adapter and emits voice synthesis events.
 - Kyrae backend calls the configured STT provider through `VOICE_STT_BASE_URL` using `VOICE_STT_API_KEY`; `apps/stt-gateway` is the current internal HTTP STT provider for OpenAI cloud transcription and requires `STT_GATEWAY_API_KEY` on `POST /transcribe`.
 - Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.

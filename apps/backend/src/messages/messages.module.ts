@@ -24,6 +24,6 @@ import { SessionsController } from './sessions.controller';
   ],
   controllers: [MessagesController, SessionsController],
   providers: [MessagesService, MessagesGateway],
-  exports: [MessagesService],
+  exports: [MessagesService, MessagesGateway],
 })
 export class MessagesModule {}
