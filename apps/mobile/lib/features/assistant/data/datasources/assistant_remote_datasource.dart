@@ -69,18 +69,23 @@ class AssistantRemoteDataSource {
     String? conversationId,
   }) async {
     try {
+      final formData = FormData.fromMap({
+        'audio': await MultipartFile.fromFile(
+          audioPath,
+          filename: 'kyrae-voice.m4a',
+          contentType: DioMediaType.parse('audio/mp4'),
+        ),
+        'channel': 'mobile',
+      });
+
+      if (conversationId != null && conversationId.isNotEmpty) {
+        formData.fields.add(MapEntry('sessionId', conversationId));
+        formData.fields.add(MapEntry('conversationId', conversationId));
+      }
+
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
         '/voice/messages',
-        data: FormData.fromMap({
-          'audio': await MultipartFile.fromFile(
-            audioPath,
-            filename: 'kyrae-voice.m4a',
-            contentType: DioMediaType.parse('audio/mp4'),
-          ),
-          'sessionId': conversationId,
-          'conversationId': conversationId,
-          'channel': 'mobile',
-        }),
+        data: formData,
         options: Options(receiveTimeout: null, sendTimeout: null),
       );
 
