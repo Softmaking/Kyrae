@@ -7,6 +7,8 @@ typedef AssistantRealtimeHandler = void Function(Map<String, dynamic> event);
 class AssistantRealtimeDataSource {
   AssistantRealtimeDataSource(this._authLocalDataSource);
 
+  static const _reconnectionAttempts = 3;
+
   final AuthLocalDataSource _authLocalDataSource;
   io.Socket? _socket;
   String? _activeSessionId;
@@ -18,6 +20,13 @@ class AssistantRealtimeDataSource {
     if (_socket?.connected ?? false) return;
 
     if (_socket != null) {
+      final token = await _authLocalDataSource.getAccessToken();
+      if (token == null || token.isEmpty) {
+        dispose();
+        return;
+      }
+
+      _socket!.auth = {'token': token};
       _socket!.connect();
       return;
     }
@@ -30,6 +39,8 @@ class AssistantRealtimeDataSource {
       io.OptionBuilder()
           .setTransports(['websocket'])
           .enableReconnection()
+          .setReconnectionAttempts(_reconnectionAttempts)
+          .setReconnectionDelay(1000)
           .setAuth({'token': token})
           .disableAutoConnect()
           .build(),
@@ -67,10 +78,27 @@ class AssistantRealtimeDataSource {
     for (final eventName in _eventNames) {
       socket.on(eventName, (payload) {
         if (payload is Map) {
-          _handler?.call(Map<String, dynamic>.from(payload));
+          _handler?.call({
+            ...Map<String, dynamic>.from(payload),
+            'eventName': eventName,
+          });
         }
       });
     }
+
+    socket.io.on('reconnect_attempt', (_) async {
+      final token = await _authLocalDataSource.getAccessToken();
+      if (token == null || token.isEmpty) {
+        dispose();
+        return;
+      }
+
+      socket.auth = {'token': token};
+    });
+
+    socket.io.on('reconnect_failed', (_) {
+      dispose();
+    });
   }
 }
 
@@ -80,4 +108,7 @@ const _eventNames = [
   'assistant.agent.completed',
   'assistant.agent.failed',
   'assistant.session.updated',
+  'voice.synthesizing',
+  'voice.ready',
+  'voice.failed',
 ];

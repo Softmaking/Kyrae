@@ -13,6 +13,7 @@ import { UserOrganization } from '../organizations/user-organization.entity';
 import { Permission } from '../permissions/permission.entity';
 import { Role } from '../roles/role.entity';
 import { User } from '../users/user.entity';
+import { VoiceEvent } from '../voice/voice-event.entity';
 
 export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
@@ -38,6 +39,7 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
       AssistantMessageTask,
       Message,
       OpenClawRequestTrace,
+      VoiceEvent,
     ],
     synchronize: false,
   }),

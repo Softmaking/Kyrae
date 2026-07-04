@@ -209,7 +209,7 @@ export class OrganizationsService {
     await this.findOneEntity(organizationId);
     const userOrgs = await this.userOrgRepository.find({
       where: { organizationId },
-      relations: ['user', 'user.roles', 'user.roles.permissions'],
+      relations: { user: { roles: { permissions: true } } },
     });
     return userOrgs.map((uo) => ({
       id: uo.user.id,

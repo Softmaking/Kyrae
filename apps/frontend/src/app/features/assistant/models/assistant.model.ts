@@ -12,4 +12,6 @@ export type {
   ListAssistantSessionsResponse,
   SendAssistantMessageCommand,
   SendAssistantMessageResponse,
+  SendVoiceSpeakCommand,
+  SendVoiceMessageResponse,
 } from '@kyrae/shared-contracts';

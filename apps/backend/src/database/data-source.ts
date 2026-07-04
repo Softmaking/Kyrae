@@ -13,6 +13,7 @@ import { Conversation } from '../messages/conversation.entity';
 import { AssistantMessageTask } from '../messages/assistant-message-task.entity';
 import { Message } from '../messages/message.entity';
 import { OpenClawRequestTrace } from '../messages/openclaw-request.entity';
+import { VoiceEvent } from '../voice/voice-event.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -35,6 +36,7 @@ export default new DataSource({
     AssistantMessageTask,
     Message,
     OpenClawRequestTrace,
+    VoiceEvent,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

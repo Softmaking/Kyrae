@@ -225,7 +225,7 @@ export class BranchesService {
     await this.findOneEntity(branchId);
     const userBranches = await this.userBranchRepository.find({
       where: { branchId },
-      relations: ['user', 'user.roles', 'user.roles.permissions'],
+      relations: { user: { roles: { permissions: true } } },
     });
 
     return userBranches.map((ub) => ({
