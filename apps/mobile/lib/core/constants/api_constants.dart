@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
-  static const String _localNetworkBaseUrl = 'http://192.168.100.43:3000';
+  static const String _localNetworkBaseUrl = 'https://lightbox-books-allied-manner.trycloudflare.com';
 
   static String get baseUrl {
     if (kIsWeb) {
