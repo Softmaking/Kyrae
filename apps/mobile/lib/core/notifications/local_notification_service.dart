@@ -22,7 +22,7 @@ class LocalNotificationService {
       iOS: iosSettings,
     );
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(settings: settings);
     await _requestPermissions();
     _initialized = true;
   }
@@ -44,10 +44,10 @@ class LocalNotificationService {
     );
 
     await _plugin.show(
-      1001,
-      'Respuesta lista',
-      'Kyrae terminó de procesar tu instrucción.',
-      details,
+      id: 1001,
+      title: 'Respuesta lista',
+      body: 'Kyrae terminó de procesar tu instrucción.',
+      notificationDetails: details,
     );
   }
 

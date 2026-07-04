@@ -61,6 +61,44 @@ class AssistantRepositoryImpl implements AssistantRepository {
   }
 
   @override
+  Future<Either<Failure, AssistantMessageTask>> sendVoiceMessage({
+    required String audioPath,
+    String? conversationId,
+  }) async {
+    try {
+      final result = await remote.sendVoiceMessage(
+        audioPath: audioPath,
+        conversationId: conversationId,
+      );
+      return Right(result);
+    } on ServerException catch (error) {
+      return Left(ServerFailure(error.message));
+    } catch (_) {
+      return const Left(ServerFailure('No fue posible enviar el audio'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, AssistantVoiceAudio>> speakAssistantMessage({
+    required String text,
+    required String conversationId,
+    required String messageId,
+  }) async {
+    try {
+      final result = await remote.speakAssistantMessage(
+        text: text,
+        conversationId: conversationId,
+        messageId: messageId,
+      );
+      return Right(result);
+    } on ServerException catch (error) {
+      return Left(ServerFailure(error.message));
+    } catch (_) {
+      return const Left(ServerFailure('No fue posible generar la respuesta hablada'));
+    }
+  }
+
+  @override
   Future<Either<Failure, AssistantSessionPage>> findSessions({
     int limit = 10,
     String? cursor,

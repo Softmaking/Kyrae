@@ -9,6 +9,8 @@ import type {
   ListAssistantSessionsResponse,
   SendAssistantMessageCommand,
   SendAssistantMessageResponse,
+  SendVoiceMessageResponse,
+  SendVoiceSpeakCommand,
 } from '../models/assistant.model';
 
 @Injectable({ providedIn: 'root' })
@@ -32,6 +34,26 @@ export class AssistantService {
   async getMessageTask(taskId: string): Promise<AssistantMessageTaskDto> {
     return firstValueFrom(
       this.http.get<AssistantMessageTaskDto>(`${this.apiBaseUrl}/messages/tasks/${taskId}`)
+    );
+  }
+
+  async sendVoiceMessage(
+    audio: Blob,
+    options: { sessionId?: string; channel?: 'web' } = {}
+  ): Promise<SendVoiceMessageResponse> {
+    const formData = new FormData();
+    formData.append('audio', audio, `kyrae-voice-${Date.now()}.webm`);
+    if (options.sessionId) formData.append('sessionId', options.sessionId);
+    formData.append('channel', options.channel ?? 'web');
+
+    return firstValueFrom(
+      this.http.post<SendVoiceMessageResponse>(`${this.apiBaseUrl}/voice/messages`, formData)
+    );
+  }
+
+  async speak(command: SendVoiceSpeakCommand): Promise<Blob> {
+    return firstValueFrom(
+      this.http.post(`${this.apiBaseUrl}/voice/speak`, command, { responseType: 'blob' })
     );
   }
 

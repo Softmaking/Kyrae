@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:kyrae_mobile/app/di/providers.dart';
 import 'package:kyrae_mobile/core/lifecycle/app_lifecycle_provider.dart';
 import 'package:kyrae_mobile/core/notifications/local_notification_service.dart';
@@ -11,6 +13,12 @@ import 'package:kyrae_mobile/features/assistant/domain/usecases/create_assistant
 import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_session_messages_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/find_assistant_sessions_usecase.dart';
 import 'package:kyrae_mobile/features/assistant/domain/usecases/get_assistant_message_task_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/send_assistant_voice_message_usecase.dart';
+import 'package:kyrae_mobile/features/assistant/domain/usecases/speak_assistant_message_usecase.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+
+enum VoiceOutputStatus { idle, synthesizing, playing, paused, failed }
 
 class AssistantState {
   const AssistantState({
@@ -22,6 +30,11 @@ class AssistantState {
     this.isLoadingSessions = false,
     this.isLoadingMoreSessions = false,
     this.isLoadingHistory = false,
+    this.isRecording = false,
+    this.isTranscribing = false,
+    this.isVoiceOutputEnabled = false,
+    this.voiceOutputStatus = VoiceOutputStatus.idle,
+    this.voiceOutputError,
     this.sessionsNextCursor,
     this.errorMessage,
   });
@@ -34,6 +47,11 @@ class AssistantState {
   final bool isLoadingSessions;
   final bool isLoadingMoreSessions;
   final bool isLoadingHistory;
+  final bool isRecording;
+  final bool isTranscribing;
+  final bool isVoiceOutputEnabled;
+  final VoiceOutputStatus voiceOutputStatus;
+  final String? voiceOutputError;
   final String? sessionsNextCursor;
   final String? errorMessage;
 
@@ -49,6 +67,11 @@ class AssistantState {
     bool? isLoadingSessions,
     bool? isLoadingMoreSessions,
     bool? isLoadingHistory,
+    bool? isRecording,
+    bool? isTranscribing,
+    bool? isVoiceOutputEnabled,
+    VoiceOutputStatus? voiceOutputStatus,
+    String? voiceOutputError,
     String? sessionsNextCursor,
     String? errorMessage,
   }) {
@@ -66,6 +89,11 @@ class AssistantState {
       isLoadingMoreSessions:
           isLoadingMoreSessions ?? this.isLoadingMoreSessions,
       isLoadingHistory: isLoadingHistory ?? this.isLoadingHistory,
+      isRecording: isRecording ?? this.isRecording,
+      isTranscribing: isTranscribing ?? this.isTranscribing,
+      isVoiceOutputEnabled: isVoiceOutputEnabled ?? this.isVoiceOutputEnabled,
+      voiceOutputStatus: voiceOutputStatus ?? this.voiceOutputStatus,
+      voiceOutputError: voiceOutputError,
       sessionsNextCursor: clearSessionsNextCursor
           ? null
           : sessionsNextCursor ?? this.sessionsNextCursor,
@@ -78,6 +106,8 @@ class AssistantController extends Notifier<AssistantState> {
   @override
   AssistantState build() {
     _createTaskUseCase = ref.watch(createAssistantMessageTaskUseCaseProvider);
+    _sendVoiceUseCase = ref.watch(sendAssistantVoiceMessageUseCaseProvider);
+    _speakUseCase = ref.watch(speakAssistantMessageUseCaseProvider);
     _getTaskUseCase = ref.watch(getAssistantMessageTaskUseCaseProvider);
     _findSessionsUseCase = ref.watch(findAssistantSessionsUseCaseProvider);
     _findSessionMessagesUseCase = ref.watch(
@@ -87,12 +117,24 @@ class AssistantController extends Notifier<AssistantState> {
     _realtimeDataSource = ref.watch(assistantRealtimeDataSourceProvider);
     _realtimeDataSource.setHandler(_handleRealtimeEvent);
     unawaited(_realtimeDataSource.connect());
+    ref.onDispose(() {
+      _audioRecorder.dispose();
+      _voiceOutputPlayer.dispose();
+      _deleteVoiceOutputFile();
+    });
     return const AssistantState();
   }
 
   static const _sessionPageSize = 10;
 
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final AudioPlayer _voiceOutputPlayer = AudioPlayer();
+  final Set<String> _spokenMessageIds = <String>{};
+  String? _voiceOutputPath;
+
   late CreateAssistantMessageTaskUseCase _createTaskUseCase;
+  late SendAssistantVoiceMessageUseCase _sendVoiceUseCase;
+  late SpeakAssistantMessageUseCase _speakUseCase;
   late GetAssistantMessageTaskUseCase _getTaskUseCase;
   late FindAssistantSessionsUseCase _findSessionsUseCase;
   late FindAssistantSessionMessagesUseCase _findSessionMessagesUseCase;
@@ -179,19 +221,55 @@ class AssistantController extends Notifier<AssistantState> {
   }
 
   void newSession() {
+    unawaited(stopSpokenResponse());
     state = state.copyWith(
       messages: const [],
       clearConversationId: true,
       clearActiveTaskId: true,
       isSending: false,
       isLoadingHistory: false,
+      isRecording: false,
+      isTranscribing: false,
+      voiceOutputStatus: VoiceOutputStatus.idle,
+      voiceOutputError: null,
       errorMessage: null,
     );
   }
 
+  void toggleVoiceOutput() {
+    final enabled = !state.isVoiceOutputEnabled;
+    if (!enabled) unawaited(stopSpokenResponse());
+    state = state.copyWith(
+      isVoiceOutputEnabled: enabled,
+      voiceOutputError: null,
+      voiceOutputStatus: enabled ? state.voiceOutputStatus : VoiceOutputStatus.idle,
+    );
+  }
+
+  Future<void> pauseSpokenResponse() async {
+    if (state.voiceOutputStatus != VoiceOutputStatus.playing) return;
+    await _voiceOutputPlayer.pause();
+    state = state.copyWith(voiceOutputStatus: VoiceOutputStatus.paused, voiceOutputError: null);
+  }
+
+  Future<void> resumeSpokenResponse() async {
+    if (state.voiceOutputStatus != VoiceOutputStatus.paused) return;
+    await _voiceOutputPlayer.play();
+    state = state.copyWith(voiceOutputStatus: VoiceOutputStatus.playing, voiceOutputError: null);
+  }
+
+  Future<void> stopSpokenResponse() async {
+    await _voiceOutputPlayer.stop();
+    await _deleteVoiceOutputFile();
+    if (state.voiceOutputStatus == VoiceOutputStatus.playing ||
+        state.voiceOutputStatus == VoiceOutputStatus.paused) {
+      state = state.copyWith(voiceOutputStatus: VoiceOutputStatus.idle, voiceOutputError: null);
+    }
+  }
+
   Future<void> send(String message) async {
     final trimmed = message.trim();
-    if (trimmed.isEmpty || state.isSending) return;
+    if (trimmed.isEmpty || state.isSending || state.isRecording || state.isTranscribing) return;
 
     state = state.copyWith(isSending: true, errorMessage: null);
     final result = await _createTaskUseCase(
@@ -208,6 +286,75 @@ class AssistantController extends Notifier<AssistantState> {
           conversationId: task.conversationId,
           activeTaskId: task.id,
           messages: [...state.messages, task.userMessage],
+          errorMessage: null,
+        );
+        await _realtimeDataSource.joinSession(task.conversationId);
+        unawaited(loadSessions());
+        if (!_realtimeDataSource.isConnected) {
+          await _pollTask(task.id);
+        }
+      },
+    );
+  }
+
+  Future<void> startVoiceRecording() async {
+    if (state.isSending || state.isRecording || state.isTranscribing) return;
+
+    final hasPermission = await _audioRecorder.hasPermission();
+    if (!hasPermission) {
+      state = state.copyWith(errorMessage: 'No hay permiso para usar el micrófono.');
+      return;
+    }
+
+    try {
+      final directory = await getTemporaryDirectory();
+      final path = '${directory.path}/kyrae-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+      state = state.copyWith(isRecording: true, errorMessage: null);
+    } catch (_) {
+      state = state.copyWith(
+        isRecording: false,
+        errorMessage: 'No se pudo iniciar la grabación de voz.',
+      );
+    }
+  }
+
+  Future<void> stopVoiceRecordingAndSend() async {
+    if (!state.isRecording) return;
+
+    final path = await _audioRecorder.stop();
+    state = state.copyWith(isRecording: false);
+
+    if (path == null) {
+      state = state.copyWith(errorMessage: 'No se capturó audio para enviar.');
+      return;
+    }
+
+    state = state.copyWith(isTranscribing: true, errorMessage: null);
+    final result = await _sendVoiceUseCase(
+      audioPath: path,
+      conversationId: state.conversationId,
+    );
+    unawaited(File(path).delete().catchError((_) => File(path)));
+
+    await result.fold(
+      (failure) {
+        state = state.copyWith(
+          isSending: false,
+          isTranscribing: false,
+          errorMessage: failure.message,
+        );
+      },
+      (task) async {
+        state = state.copyWith(
+          conversationId: task.conversationId,
+          activeTaskId: task.id,
+          messages: [...state.messages, task.userMessage],
+          isSending: true,
+          isTranscribing: false,
           errorMessage: null,
         );
         await _realtimeDataSource.joinSession(task.conversationId);
@@ -243,6 +390,7 @@ class AssistantController extends Notifier<AssistantState> {
               errorMessage: null,
             );
             _addMessage(task.assistantMessage!);
+            unawaited(_speakAssistantMessage(task.assistantMessage!));
             unawaited(loadSessions());
             _notifyIfAppIsInactive();
             return false;
@@ -277,8 +425,14 @@ class AssistantController extends Notifier<AssistantState> {
     if (sessionId is! String || sessionId != state.conversationId) return;
 
     final status = event['status'];
+    final eventName = event['eventName'];
     final role = event['role'];
     final content = event['content'];
+
+    if (eventName is String && eventName.startsWith('voice.')) {
+      _handleVoiceRealtimeEvent(event);
+      return;
+    }
 
     if (status == 'received' && role == 'user') {
       return;
@@ -290,7 +444,8 @@ class AssistantController extends Notifier<AssistantState> {
     }
 
     if (status == 'completed' && role == 'assistant' && content is String) {
-      _addMessage(_messageFromRealtime(event, AssistantMessageRole.assistant));
+      final message = _messageFromRealtime(event, AssistantMessageRole.assistant);
+      final added = _addMessage(message);
       state = state.copyWith(
         isSending: false,
         clearActiveTaskId: true,
@@ -298,6 +453,20 @@ class AssistantController extends Notifier<AssistantState> {
       );
       unawaited(loadSessions());
       _notifyIfAppIsInactive();
+      if (added) unawaited(_speakAssistantMessage(message));
+      return;
+    }
+
+    if (status == 'synthesizing') {
+      state = state.copyWith(
+        voiceOutputStatus: VoiceOutputStatus.synthesizing,
+        voiceOutputError: null,
+      );
+      return;
+    }
+
+    if (status == 'ready') {
+      state = state.copyWith(voiceOutputError: null);
       return;
     }
 
@@ -313,9 +482,93 @@ class AssistantController extends Notifier<AssistantState> {
     }
   }
 
-  void _addMessage(AssistantMessage message) {
-    if (state.messages.any((item) => _isSameMessage(item, message))) return;
+  void _handleVoiceRealtimeEvent(Map<String, dynamic> event) {
+    final status = event['status'];
+
+    if (status == 'synthesizing') {
+      state = state.copyWith(
+        voiceOutputStatus: VoiceOutputStatus.synthesizing,
+        voiceOutputError: null,
+      );
+      return;
+    }
+
+    if (status == 'ready') {
+      state = state.copyWith(voiceOutputError: null);
+      return;
+    }
+
+    if (status == 'failed') {
+      state = state.copyWith(
+        voiceOutputStatus: VoiceOutputStatus.failed,
+        voiceOutputError:
+            event['errorMessage'] as String? ??
+            'No se pudo generar la respuesta hablada.',
+      );
+    }
+  }
+
+  bool _addMessage(AssistantMessage message) {
+    if (state.messages.any((item) => _isSameMessage(item, message))) return false;
     state = state.copyWith(messages: [...state.messages, message]);
+    return true;
+  }
+
+  Future<void> _speakAssistantMessage(AssistantMessage message) async {
+    if (!state.isVoiceOutputEnabled) return;
+    if (message.role != AssistantMessageRole.assistant || message.content.trim().isEmpty) return;
+    if (_spokenMessageIds.contains(message.id)) return;
+
+    _spokenMessageIds.add(message.id);
+    await stopSpokenResponse();
+    state = state.copyWith(
+      voiceOutputStatus: VoiceOutputStatus.synthesizing,
+      voiceOutputError: null,
+    );
+
+    final result = await _speakUseCase(
+      text: message.content,
+      conversationId: message.conversationId,
+      messageId: message.id,
+    );
+
+    await result.fold(
+      (failure) async {
+        state = state.copyWith(
+          voiceOutputStatus: VoiceOutputStatus.failed,
+          voiceOutputError: failure.message,
+        );
+      },
+      (audio) async {
+        try {
+          final directory = await getTemporaryDirectory();
+          final extension = audio.mimeType.contains('mpeg') ? 'mp3' : 'wav';
+          final path = '${directory.path}/kyrae-voice-output-${message.id}.$extension';
+          await File(path).writeAsBytes(audio.bytes, flush: true);
+          _voiceOutputPath = path;
+          await _voiceOutputPlayer.setFilePath(path);
+          state = state.copyWith(
+            voiceOutputStatus: VoiceOutputStatus.playing,
+            voiceOutputError: null,
+          );
+          await _voiceOutputPlayer.play();
+          if (_voiceOutputPlayer.processingState == ProcessingState.completed) {
+            await stopSpokenResponse();
+          }
+        } catch (_) {
+          state = state.copyWith(
+            voiceOutputStatus: VoiceOutputStatus.failed,
+            voiceOutputError: 'No se pudo reproducir la respuesta hablada.',
+          );
+        }
+      },
+    );
+  }
+
+  Future<void> _deleteVoiceOutputFile() async {
+    final path = _voiceOutputPath;
+    _voiceOutputPath = null;
+    if (path != null) await File(path).delete().catchError((_) => File(path));
   }
 
   bool _isSameMessage(AssistantMessage current, AssistantMessage next) {

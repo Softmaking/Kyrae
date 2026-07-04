@@ -13,9 +13,18 @@ export type AssistantRealtimeEventName =
   | 'assistant.agent.processing'
   | 'assistant.agent.completed'
   | 'assistant.agent.failed'
-  | 'assistant.session.updated';
+  | 'assistant.session.updated'
+  | 'voice.synthesizing'
+  | 'voice.ready'
+  | 'voice.failed';
 
-export type AssistantRealtimeStatus = 'received' | 'processing' | 'completed' | 'failed';
+export type AssistantRealtimeStatus =
+  | 'received'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'synthesizing'
+  | 'ready';
 
 export interface JoinAssistantSessionCommand {
   sessionId: string;
@@ -32,6 +41,7 @@ export interface AssistantRealtimeEvent {
   metadata: {
     channel: AssistantChannel;
     agent?: 'main';
+    [key: string]: unknown;
   };
   createdAt: string;
 }

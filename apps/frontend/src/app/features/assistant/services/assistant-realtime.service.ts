@@ -8,6 +8,7 @@ import type { AssistantRealtimeEvent, AssistantRealtimeEventName } from '../mode
 export class AssistantRealtimeService {
   private readonly authService = inject(AuthService);
   private readonly zone = inject(NgZone);
+  private readonly reconnectAttempts = 3;
   private socket: Socket | null = null;
   private activeSessionId: string | null = null;
   private readonly handlers = new Map<
@@ -21,17 +22,39 @@ export class AssistantRealtimeService {
     const token = this.authService.getAccessToken();
     if (!token) return;
 
+    if (this.socket) {
+      this.socket.auth = { token };
+      this.socket.connect();
+      return;
+    }
+
     this.socket = io(API_BASE_URL, {
       transports: ['websocket'],
       auth: { token },
       reconnection: true,
-      reconnectionAttempts: Infinity,
+      reconnectionAttempts: this.reconnectAttempts,
       reconnectionDelay: 1000,
     });
 
     this.socket.on('connect', () => {
       if (this.activeSessionId) this.joinSession(this.activeSessionId);
     });
+
+    this.socket.io.on('reconnect_attempt', () => {
+      const refreshedToken = this.authService.getAccessToken();
+      if (!refreshedToken) {
+        this.stopSocket();
+        return;
+      }
+
+      if (this.socket) this.socket.auth = { token: refreshedToken };
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      this.stopSocket();
+    });
+
+    this.bindRegisteredHandlers();
   }
 
   disconnect(): void {
@@ -71,5 +94,20 @@ export class AssistantRealtimeService {
     const wrappedHandler = this.handlers.get(eventName)?.get(handler);
     this.socket?.off(eventName, wrappedHandler ?? handler);
     this.handlers.get(eventName)?.delete(handler);
+  }
+
+  private stopSocket(): void {
+    this.socket?.disconnect();
+    this.socket = null;
+  }
+
+  private bindRegisteredHandlers(): void {
+    if (!this.socket) return;
+
+    for (const [eventName, eventHandlers] of this.handlers.entries()) {
+      for (const wrappedHandler of eventHandlers.values()) {
+        this.socket.on(eventName, wrappedHandler);
+      }
+    }
   }
 }

@@ -12,6 +12,7 @@ import { ConfigurationModule } from './configuration/configuration.module';
 import { RolesModule } from './roles/roles.module';
 import { SecurityModule } from './security/security.module';
 import { UsersModule } from './users/users.module';
+import { VoiceModule } from './voice/voice.module';
 import { typeOrmConfig } from './database/typeorm.config';
 
 @Module({
@@ -28,6 +29,7 @@ import { typeOrmConfig } from './database/typeorm.config';
     OrganizationsModule,
     BranchesModule,
     MessagesModule,
+    VoiceModule,
     SecurityModule,
   ],
 })

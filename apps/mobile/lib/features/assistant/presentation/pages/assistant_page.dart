@@ -4,6 +4,7 @@ import 'package:kyrae_mobile/app/di/providers.dart';
 import 'package:kyrae_mobile/app/theme/app_theme.dart';
 import 'package:kyrae_mobile/core/lifecycle/app_lifecycle_provider.dart';
 import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
+import 'package:kyrae_mobile/features/assistant/presentation/providers/assistant_provider.dart';
 
 class AssistantPage extends ConsumerStatefulWidget {
   const AssistantPage({super.key});
@@ -39,6 +40,30 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     _controller.clear();
     await ref.read(assistantControllerProvider.notifier).send(text);
     _scrollToBottom();
+  }
+
+  Future<void> _toggleVoiceRecording() async {
+    final controller = ref.read(assistantControllerProvider.notifier);
+    final state = ref.read(assistantControllerProvider);
+
+    if (state.isRecording) {
+      await controller.stopVoiceRecordingAndSend();
+    } else {
+      await controller.startVoiceRecording();
+    }
+    _scrollToBottom();
+  }
+
+  Future<void> _pauseSpokenResponse() async {
+    await ref.read(assistantControllerProvider.notifier).pauseSpokenResponse();
+  }
+
+  Future<void> _resumeSpokenResponse() async {
+    await ref.read(assistantControllerProvider.notifier).resumeSpokenResponse();
+  }
+
+  Future<void> _stopSpokenResponse() async {
+    await ref.read(assistantControllerProvider.notifier).stopSpokenResponse();
   }
 
   void _scrollToBottom() {
@@ -80,6 +105,10 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
     ref.watch(appLifecycleProvider);
     final state = ref.watch(assistantControllerProvider);
+    final user = ref.watch(authControllerProvider).user;
+    final canUseVoice = user?.permissions.contains('ASSISTANT_VOICE_USE') ?? false;
+    final canUseVoiceOutput =
+        user?.permissions.contains('ASSISTANT_VOICE_OUTPUT_USE') ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.slate50,
@@ -106,6 +135,9 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                   if (state.isLoadingHistory) const _HistoryLoadingBanner(),
                   if (state.messages.isEmpty) const _EmptyState(),
                   ...state.messages.map(_MessageBubble.new),
+                  if (state.isRecording) const _VoiceStatusBubble(text: 'Grabando audio...'),
+                  if (state.isTranscribing)
+                    const _VoiceStatusBubble(text: 'Transcribiendo y enviando audio...'),
                   if (state.isSending) const _ThinkingBubble(),
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 12),
@@ -114,11 +146,130 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                 ],
               ),
             ),
+            if (canUseVoiceOutput)
+              _VoiceOutputControls(
+                isEnabled: state.isVoiceOutputEnabled,
+                status: state.voiceOutputStatus,
+                errorMessage: state.voiceOutputError,
+                onToggle: () => ref
+                    .read(assistantControllerProvider.notifier)
+                    .toggleVoiceOutput(),
+                onPause: _pauseSpokenResponse,
+                onResume: _resumeSpokenResponse,
+                onStop: _stopSpokenResponse,
+              ),
             _MessageComposer(
               controller: _controller,
               isSending: state.isSending,
+              isRecording: state.isRecording,
+              isTranscribing: state.isTranscribing,
+              canUseVoice: canUseVoice,
               onSend: _send,
+              onVoice: _toggleVoiceRecording,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VoiceOutputControls extends StatelessWidget {
+  const _VoiceOutputControls({
+    required this.isEnabled,
+    required this.status,
+    required this.errorMessage,
+    required this.onToggle,
+    required this.onPause,
+    required this.onResume,
+    required this.onStop,
+  });
+
+  final bool isEnabled;
+  final VoiceOutputStatus status;
+  final String? errorMessage;
+  final VoidCallback onToggle;
+  final Future<void> Function() onPause;
+  final Future<void> Function() onResume;
+  final Future<void> Function() onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusText = switch (status) {
+      VoiceOutputStatus.synthesizing => 'Generando voz...',
+      VoiceOutputStatus.playing => 'Reproduciendo respuesta...',
+      VoiceOutputStatus.paused => 'Reproducción pausada.',
+      VoiceOutputStatus.failed => errorMessage ?? 'No se pudo generar voz.',
+      VoiceOutputStatus.idle => isEnabled
+          ? 'Lista para leer la próxima respuesta.'
+          : 'Respuesta hablada desactivada.',
+    };
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      color: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.slate50,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.slate200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.volume_up_rounded, color: AppColors.brandPrimary, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Respuesta hablada',
+                    style: TextStyle(
+                      color: AppColors.slate900,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Switch(value: isEnabled, onChanged: (_) => onToggle()),
+              ],
+            ),
+            Text(
+              statusText,
+              style: TextStyle(
+                color: status == VoiceOutputStatus.failed
+                    ? const Color(0xFFB91C1C)
+                    : AppColors.slate600,
+                fontSize: 12,
+              ),
+            ),
+            if (status == VoiceOutputStatus.playing || status == VoiceOutputStatus.paused) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: status == VoiceOutputStatus.playing ? onPause : onResume,
+                      icon: Icon(
+                        status == VoiceOutputStatus.playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                      ),
+                      label: Text(status == VoiceOutputStatus.playing ? 'Pausar' : 'Reanudar'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onStop,
+                      icon: const Icon(Icons.stop_rounded),
+                      label: const Text('Detener'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -540,6 +691,36 @@ class _ThinkingBubble extends StatelessWidget {
   }
 }
 
+class _VoiceStatusBubble extends StatelessWidget {
+  const _VoiceStatusBubble({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.brandSoft,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.mic_rounded, color: AppColors.brandPrimary, size: 18),
+            const SizedBox(width: 8),
+            Text(text, style: const TextStyle(color: AppColors.slate700, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.message});
 
@@ -566,12 +747,20 @@ class _MessageComposer extends StatelessWidget {
   const _MessageComposer({
     required this.controller,
     required this.isSending,
+    required this.isRecording,
+    required this.isTranscribing,
+    required this.canUseVoice,
     required this.onSend,
+    required this.onVoice,
   });
 
   final TextEditingController controller;
   final bool isSending;
+  final bool isRecording;
+  final bool isTranscribing;
+  final bool canUseVoice;
   final VoidCallback onSend;
+  final VoidCallback onVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -590,7 +779,7 @@ class _MessageComposer extends StatelessWidget {
               minLines: 1,
               maxLines: 4,
               textInputAction: TextInputAction.send,
-              enabled: !isSending,
+              enabled: !isSending && !isRecording && !isTranscribing,
               decoration: const InputDecoration(
                 hintText: 'Escribe una instrucción...',
               ),
@@ -598,11 +787,34 @@ class _MessageComposer extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
+          if (canUseVoice) ...[
+            SizedBox(
+              height: 52,
+              width: 52,
+              child: OutlinedButton(
+                onPressed: isSending || isTranscribing ? null : onVoice,
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  side: BorderSide(
+                    color: isRecording ? AppColors.brandPrimary : AppColors.slate300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Icon(
+                  isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                  color: isRecording ? AppColors.brandPrimary : AppColors.slate600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           SizedBox(
             height: 52,
             width: 52,
             child: FilledButton(
-              onPressed: isSending ? null : onSend,
+              onPressed: isSending || isRecording || isTranscribing ? null : onSend,
               style: FilledButton.styleFrom(
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
