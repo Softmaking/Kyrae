@@ -1,0 +1,10 @@
+{
+  "name": "kyrae-openclaw-http-adapter",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@10.16.0",
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js"
+  }
+}

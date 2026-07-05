@@ -21,6 +21,8 @@
     "stt-gateway:dev": "pnpm --dir apps/stt-gateway start:dev",
     "stt-gateway:build": "pnpm --dir apps/stt-gateway build",
     "stt-gateway:lint": "pnpm --dir apps/stt-gateway lint",
+    "openclaw-adapter:start": "pnpm --dir apps/openclaw-http-adapter start",
+    "openclaw-adapter:check": "pnpm --dir apps/openclaw-http-adapter check",
     "docker:db": "docker compose up -d postgres",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",

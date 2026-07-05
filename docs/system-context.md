@@ -9,6 +9,7 @@ It includes:
 - Angular frontend
 - NestJS backend
 - Flutter mobile client (official beta)
+- OpenClaw HTTP adapter for the external OpenClaw runtime
 - STT gateway for speech-to-text provider integration
 - PostgreSQL + TypeORM
 - Shared contracts package
@@ -21,7 +22,7 @@ It includes:
 
 The IAM and security foundation must remain reusable. Unrelated business modules must not be added unless a specification explicitly requires them.
 
-`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. Web and mobile voice input are implemented through the backend voice STT adapter. Clients call Kyrae backend only; `apps/stt-gateway` is an internal backend dependency for cloud transcription and must not be called directly by web or mobile clients. Voice output remains a documented target capability only.
+`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. `apps/openclaw-http-adapter` is the repository-owned HTTP wrapper intended to run next to the external OpenClaw CLI/runtime. Web and mobile voice input are implemented through the backend voice STT adapter. Clients call Kyrae backend only; `apps/openclaw-http-adapter` and `apps/stt-gateway` are internal backend dependencies and must not be called directly by web or mobile clients. Voice output remains a documented target capability only.
 
 ## Current Modules
 
@@ -140,7 +141,8 @@ Current implementation:
 - OpenClaw request/response traces are stored in PostgreSQL through `openclaw_requests`.
 - The backend uses `OpenClawService` as the only OpenClaw adapter.
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
-- `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages`.
+- `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages` and includes `Authorization: Bearer {OPENCLAW_API_KEY}` when configured.
+- `apps/openclaw-http-adapter` exposes internal `GET /health` and `POST /messages`, wraps the external `openclaw agent` CLI, defaults to `OPENCLAW_HTTP_HOST=127.0.0.1`, and requires `OPENCLAW_HTTP_API_KEY` unless explicitly disabled for local development.
 - `VOICE_STT_MODE=mock` returns a deterministic local transcription for development.
 - `VOICE_STT_MODE=http` sends audio from the Kyrae backend to `POST {VOICE_STT_BASE_URL}/transcribe` with an internal bearer token from `VOICE_STT_API_KEY`.
 - `apps/stt-gateway` exposes internal `POST /transcribe`, requires `STT_GATEWAY_API_KEY`, defaults to `HOST=127.0.0.1`, and currently supports `STT_PROVIDER=openai`.
@@ -311,6 +313,19 @@ OpenClaw adapter variables:
 - `OPENCLAW_MODE`
 - `OPENCLAW_BASE_URL`
 - `OPENCLAW_TIMEOUT_MS`
+- `OPENCLAW_API_KEY`
+
+OpenClaw HTTP adapter variables:
+
+- `OPENCLAW_HTTP_HOST`
+- `OPENCLAW_HTTP_PORT`
+- `OPENCLAW_HTTP_API_KEY`
+- `OPENCLAW_HTTP_REQUIRE_API_KEY`
+- `OPENCLAW_HTTP_MAX_BODY_BYTES`
+- `OPENCLAW_HTTP_MAX_CONCURRENT_REQUESTS`
+- `OPENCLAW_AGENT_NAME`
+- `OPENCLAW_BIN`
+- `OPENCLAW_AGENT_TIMEOUT_SECONDS`
 
 Voice STT adapter variables:
 

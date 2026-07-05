@@ -31,9 +31,13 @@ export class OpenClawService {
     const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
     try {
+      const apiKey = this.configService.get<string>('OPENCLAW_API_KEY');
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+
       const response = await fetch(`${baseUrl.replace(/\/$/, '')}/messages`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers,
         body: JSON.stringify(request),
         signal: controller?.signal,
       });
@@ -42,7 +46,11 @@ export class OpenClawService {
         throw new BadGatewayException('Kyrae no pudo procesar la solicitud.');
       }
 
-      const body = (await response.json()) as Partial<OpenClawResponse>;
+      const body = (await response.json()) as Partial<OpenClawResponse> & { success?: boolean };
+      if (body.success === false) {
+        throw new BadGatewayException('Kyrae no pudo procesar la solicitud.');
+      }
+
       if (!body.message || typeof body.message !== 'string') {
         throw new BadGatewayException('Kyrae devolvió una respuesta inválida.');
       }

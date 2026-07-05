@@ -51,6 +51,7 @@ Thumbs.db
 
 # Build artifacts
 apps/backend/dist/
+apps/openclaw-http-adapter/dist/
 packages/shared-contracts/dist/
 
 # Test coverage

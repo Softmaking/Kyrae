@@ -33,6 +33,12 @@ Source of truth:
 - `apps/stt-gateway/src/main.ts`
 - `apps/stt-gateway/src/app.module.ts`
 
+## OpenClaw HTTP Adapter Entrypoints
+
+Source of truth:
+
+- `apps/openclaw-http-adapter/src/server.js`
+
 ## Frontend Entrypoints
 
 Source of truth:
@@ -94,6 +100,10 @@ Backend source of truth:
 STT gateway source of truth:
 
 - `apps/stt-gateway/src/**/*.controller.ts`
+
+OpenClaw HTTP adapter source of truth:
+
+- `apps/openclaw-http-adapter/src/server.js`
 
 Frontend API usage source of truth:
 
@@ -190,6 +200,7 @@ Rules:
 - `GET /sessions/:id/messages` is the current backend entrypoint for persisted assistant message history.
 - Socket.IO event handling for assistant realtime status is implemented in `apps/backend/src/messages/messages.gateway.ts`.
 - `OpenClawService` is the current backend adapter for OpenClaw-compatible request/response behavior.
+- `apps/openclaw-http-adapter` is the repository-owned HTTP wrapper for deployments where Kyrae must call an external OpenClaw CLI/runtime through `POST /messages`.
 - `sessionId` is the canonical API identifier for assistant context; `conversationId` remains a temporary compatibility alias.
 - `openclaw_requests` persists OpenClaw request payloads, response payloads, status, errors, and duration.
 - Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
@@ -198,7 +209,7 @@ Rules:
 - Web and mobile voice input consume `POST /voice/messages`; the backend transcribes audio and reuses the existing assistant message task flow.
 - Web and mobile voice output consume `POST /voice/speak`; the backend generates an immediate audio blob through the configured TTS adapter and emits voice synthesis events.
 - Kyrae backend calls the configured STT provider through `VOICE_STT_BASE_URL` using `VOICE_STT_API_KEY`; `apps/stt-gateway` is the current internal HTTP STT provider for OpenAI cloud transcription and requires `STT_GATEWAY_API_KEY` on `POST /transcribe`.
-- Real OpenClaw runtime behavior is external to this repository unless a future approved feature changes this.
+- Real OpenClaw runtime behavior remains external to this repository; `apps/openclaw-http-adapter` only wraps the external `openclaw` CLI process.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 
 ## Environment Variables
@@ -219,7 +230,9 @@ Rules:
 - frontend uses `apiBaseUrl`
 - runtime `NG_APP_*` variables are not used
 
-OpenClaw adapter environment variables are defined in `apps/backend/.env.example`.
+Kyrae backend OpenClaw adapter environment variables are defined in `apps/backend/.env.example`.
+
+OpenClaw HTTP adapter environment variables are defined in `apps/openclaw-http-adapter/.env.example`.
 
 Voice STT adapter environment variables are defined in `apps/backend/.env.example`.
 
