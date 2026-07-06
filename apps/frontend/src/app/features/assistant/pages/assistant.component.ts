@@ -69,6 +69,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.realtimeService.on('assistant.agent.processing', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.agent.completed', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.agent.failed', this.handleRealtimeEvent);
+    this.realtimeService.on('assistant.automation.received', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.session.updated', this.handleRealtimeEvent);
     this.realtimeService.on('voice.synthesizing', this.handleVoiceRealtimeEvent);
     this.realtimeService.on('voice.ready', this.handleVoiceRealtimeEvent);
@@ -81,6 +82,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.realtimeService.off('assistant.agent.processing', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.agent.completed', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.agent.failed', this.handleRealtimeEvent);
+    this.realtimeService.off('assistant.automation.received', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.session.updated', this.handleRealtimeEvent);
     this.realtimeService.off('voice.synthesizing', this.handleVoiceRealtimeEvent);
     this.realtimeService.off('voice.ready', this.handleVoiceRealtimeEvent);
@@ -96,6 +98,14 @@ export class AssistantComponent implements OnInit, OnDestroy {
 
   canUseVoiceOutput(): boolean {
     return this.authService.hasPermission('ASSISTANT_VOICE_OUTPUT_USE');
+  }
+
+  channelLabel(channel: string): string {
+    if (channel === 'automation') return 'Automatización';
+    if (channel === 'local_voice') return 'Voz local';
+    if (channel === 'mobile') return 'Mobile';
+    if (channel === 'web') return 'Web';
+    return channel;
   }
 
   voiceButtonLabel(): string {
@@ -340,7 +350,12 @@ export class AssistantComponent implements OnInit, OnDestroy {
   }
 
   private readonly handleRealtimeEvent = (event: AssistantRealtimeEvent): void => {
-    if (this.sessionId() !== event.sessionId) return;
+    if (this.sessionId() !== event.sessionId) {
+      if (event.status === 'automation_received' || event.status === 'completed') {
+        void this.loadSessions();
+      }
+      return;
+    }
 
     if (event.status === 'received' && event.role === 'user' && event.content) {
       this.addMessage(this.eventToMessage(event));
@@ -364,6 +379,15 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.scrollMessagesToBottom();
       void this.loadSessions();
       if (added) void this.speakAssistantMessage(message);
+      return;
+    }
+
+    if (event.status === 'automation_received' && event.role === 'assistant' && event.content) {
+      this.addMessage(this.eventToMessage(event));
+      this.loading.set(false);
+      this.error.set(null);
+      this.scrollMessagesToBottom();
+      void this.loadSessions();
       return;
     }
 

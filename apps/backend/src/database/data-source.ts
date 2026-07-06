@@ -13,6 +13,8 @@ import { Conversation } from '../messages/conversation.entity';
 import { AssistantMessageTask } from '../messages/assistant-message-task.entity';
 import { Message } from '../messages/message.entity';
 import { OpenClawRequestTrace } from '../messages/openclaw-request.entity';
+import { AutomationSchedule } from '../automation-schedules/automation-schedule.entity';
+import { OpenClawEvent } from '../openclaw-events/openclaw-event.entity';
 import { VoiceEvent } from '../voice/voice-event.entity';
 
 export default new DataSource({
@@ -32,10 +34,12 @@ export default new DataSource({
     Branch,
     UserBranch,
     AppConfig,
+    AutomationSchedule,
     Conversation,
     AssistantMessageTask,
     Message,
     OpenClawRequestTrace,
+    OpenClawEvent,
     VoiceEvent,
   ],
   migrations: ['src/database/migrations/*.ts'],

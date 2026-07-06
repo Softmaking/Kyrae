@@ -36,6 +36,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - organizations
 - branches
 - configuration
+- automation-schedules
 - messages
 - openclaw
 - voice
@@ -49,6 +50,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - public
 - auth
 - dashboard
+- automation-schedules
 - users
 - roles
 - permissions
@@ -133,12 +135,14 @@ Current implementation:
 - `/voice/speak` accepts authenticated web/mobile text, generates TTS audio, and returns an immediate audio blob response.
 - `/sessions` lists authenticated assistant sessions with cursor pagination and a default page size of 10.
 - `/sessions/:id/messages` returns the persisted message history for one owned assistant session.
+- `/openclaw/events` accepts internal OpenClaw cron automation events protected by `OPENCLAW_EVENTS_API_KEY`.
 - Socket.IO realtime events expose assistant message status for web and mobile clients.
 - The endpoint requires `ASSISTANT_CHAT_USE`.
 - User and assistant messages are stored in PostgreSQL.
 - Conversations are stored in PostgreSQL.
 - Public API uses `sessionId`; the current database implementation still uses `conversations` as the internal sessions table.
 - OpenClaw request/response traces are stored in PostgreSQL through `openclaw_requests`.
+- OpenClaw cron automation events are stored in PostgreSQL through `openclaw_events`, create assistant messages with `channel=automation`, and use one per-user session titled `Automatizaciones de Kyrae` in V1.
 - The backend uses `OpenClawService` as the only OpenClaw adapter.
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages` and includes `Authorization: Bearer {OPENCLAW_API_KEY}` when configured.
@@ -209,6 +213,13 @@ Most domains use:
 - `MODULE_UPDATE`
 - `MODULE_DELETE`
 
+Automation schedules use:
+
+- `AUTOMATION_READ`
+- `AUTOMATION_CREATE`
+- `AUTOMATION_UPDATE`
+- `AUTOMATION_DELETE`
+
 Audit currently exposes only:
 
 - `AUDIT_READ`
@@ -248,6 +259,17 @@ Current implementation:
 - delete
 
 Frontend exposes `findByKey()`, but no component currently consumes it.
+
+### Automation Schedules
+
+Current implementation:
+
+- CRUD for automation schedule definitions
+- Each schedule has: userId, automationKey, title, instruction, cronExpression, isActive, lastRunAt
+- Permissions: `AUTOMATION_READ`, `AUTOMATION_CREATE`, `AUTOMATION_UPDATE`, `AUTOMATION_DELETE`
+- Frontend UI in `/automation-schedules`
+- send-event.js `--batch` mode reads active schedules from `GET /automation-schedules` and executes due ones
+- OS cron runs `send-event.js --batch` periodically
 
 ## Audit
 
@@ -314,6 +336,7 @@ OpenClaw adapter variables:
 - `OPENCLAW_BASE_URL`
 - `OPENCLAW_TIMEOUT_MS`
 - `OPENCLAW_API_KEY`
+- `OPENCLAW_EVENTS_API_KEY`
 
 OpenClaw HTTP adapter variables:
 

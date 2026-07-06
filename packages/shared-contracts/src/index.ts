@@ -1,4 +1,5 @@
 export * from './audit/audit.contracts';
+export * from './automation/automation.contracts';
 export * from './auth/auth.contracts';
 export * from './branches/branch.contracts';
 export * from './common/common.contracts';

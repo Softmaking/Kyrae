@@ -64,9 +64,83 @@ OPENCLAW_MODE=http
 OPENCLAW_BASE_URL=http://127.0.0.1:3100
 OPENCLAW_TIMEOUT_MS=0
 OPENCLAW_API_KEY=change-me
+OPENCLAW_EVENTS_API_KEY=change-me-events
 ```
 
 `OPENCLAW_API_KEY` in Kyrae backend must match `OPENCLAW_HTTP_API_KEY` in this adapter.
+
+## Automation Cron Events
+
+OpenClaw cron jobs can notify Kyrae through the backend webhook:
+
+```txt
+POST /openclaw/events
+Authorization: Bearer {OPENCLAW_EVENTS_API_KEY}
+```
+
+Example payload:
+
+```json
+{
+  "eventId": "daily-review-2026-07-04T09:00:00Z",
+  "type": "automation.completed",
+  "userId": "kyrae-user-id",
+  "automationKey": "daily-review",
+  "title": "Revisión diaria",
+  "message": "Encontré 3 tareas importantes para hoy.",
+  "severity": "INFO",
+  "sessionStrategy": "user_automation_inbox",
+  "externalRunId": "optional-openclaw-run-id",
+  "metadata": {},
+  "createdAt": "2026-07-04T09:00:00.000Z"
+}
+```
+
+Kyrae stores these events in the user's `Automatizaciones de Kyrae` assistant session using `channel=automation`. The `automationKey` is always stored in metadata so a future version can split automation history into one session per automation.
+
+### OS Cron (send-event.js)
+
+Since OpenClaw's internal cron does not know the Kyrae `userId`, use `send-event.js` with an OS-level cron instead.
+
+**Usage:**
+
+```bash
+node src/send-event.js \
+  --userId "<kyrae-user-uuid>" \
+  --automationKey "clima-santiago" \
+  --title "Clima en Santiago" \
+  --message "¿Cómo está el clima hoy en Santiago?"
+```
+
+**Environment variables:**
+
+```env
+KYRAE_BACKEND_URL=http://localhost:3000
+OPENCLAW_EVENTS_API_KEY=change-me-events
+OPENCLAW_BIN=openclaw
+OPENCLAW_AGENT_NAME=main
+OPENCLAW_AGENT_TIMEOUT_SECONDS=600
+```
+
+**Flow:**
+
+1. Generates a unique `eventId` (UUID v4).
+2. Executes the `openclaw agent` CLI with the given instruction (`--message`).
+3. Captures the assistant response or error.
+4. POSTs to Kyrae backend at `POST /openclaw/events` with `Authorization: Bearer {OPENCLAW_EVENTS_API_KEY}`.
+5. Logs the result to stdout (redirect to a file in crontab).
+
+**Crontab example:**
+
+```cron
+0 8 * * * cd /path/apps/openclaw-http-adapter && \
+  node src/send-event.js \
+    --userId "a1b2c3d4-..." \
+    --automationKey "clima-santiago" \
+    --title "Clima en Santiago" \
+    --message "¿Cómo está el clima hoy en Santiago?" \
+    >> /var/log/kyrae-automations.log 2>&1
+```
 
 ## Run
 

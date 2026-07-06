@@ -61,6 +61,7 @@ export class MessagesGateway {
 
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
       client.data.userId = payload.sub;
+      await client.join(this.userRoom(payload.sub));
     } catch (error) {
       this.logger.warn(error instanceof Error ? error.message : 'Socket authentication failed');
       client.disconnect(true);
@@ -71,8 +72,20 @@ export class MessagesGateway {
     this.server.to(this.sessionRoom(event.sessionId)).emit(eventName, event);
   }
 
+  emitToUser(
+    userId: string,
+    eventName: AssistantRealtimeEventName,
+    event: AssistantRealtimeEvent
+  ): void {
+    this.server.to(this.userRoom(userId)).emit(eventName, event);
+  }
+
   private sessionRoom(sessionId: string): string {
     return `session:${sessionId}`;
+  }
+
+  private userRoom(userId: string): string {
+    return `user:${userId}`;
   }
 
   private getClientUserId(client: Socket): string | null {

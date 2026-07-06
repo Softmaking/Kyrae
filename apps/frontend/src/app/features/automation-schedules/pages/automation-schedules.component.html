@@ -1,0 +1,200 @@
+<div class="p-6">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Automatizaciones</h1>
+
+    @if (authService.hasPermission('AUTOMATION_CREATE')) {
+      <button (click)="showCreateModal.set(true)" class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover">
+        Nueva automatizacion
+      </button>
+    }
+  </div>
+
+  <app-table
+    title="Listado de automatizaciones"
+    [total]="service.total()"
+    [pageSize]="pageSize()"
+    [currentPage]="currentPage()"
+    [searchTerm]="searchTerm()"
+    [loading]="service.loading()"
+    emptyMessage="No se encontraron automatizaciones"
+    (pageChange)="goToPage($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (searchChange)="onSearchChange($event)"
+  >
+    <div header-actions>
+      <p class="admin-table-meta">Total: {{ service.total() }} automatizaciones</p>
+    </div>
+
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Titulo</th>
+          <th>Clave</th>
+          <th>Cron</th>
+          <th>Estado</th>
+          <th>Ultima ejecucion</th>
+          <th>Creado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (schedule of service.schedules(); track schedule.id) {
+          <tr>
+            <td>
+              <div>
+                <p class="font-medium text-gray-900">{{ schedule.title }}</p>
+                <p class="mt-0.5 text-xs text-gray-500">{{ schedule.instruction.length > 80 ? (schedule.instruction | slice:0:80) + '...' : schedule.instruction }}</p>
+              </div>
+            </td>
+            <td><span class="admin-table-code">{{ schedule.automationKey }}</span></td>
+            <td><span class="admin-table-code">{{ schedule.cronExpression }}</span></td>
+            <td>
+              <span [class]="schedule.isActive ? 'admin-table-status-active' : 'admin-table-status-inactive'">
+                {{ schedule.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-sm text-gray-500">{{ formatDate(schedule.lastRunAt) }}</td>
+            <td class="text-sm text-gray-500">{{ formatDate(schedule.createdAt) }}</td>
+            <td>
+              <div class="admin-table-actions">
+                @if (authService.hasPermission('AUTOMATION_UPDATE')) {
+                  <button (click)="startEdit(schedule)" class="admin-table-action-button">Editar</button>
+                  <button (click)="onToggleActive(schedule)" class="admin-table-action-button">
+                    {{ schedule.isActive ? 'Desactivar' : 'Activar' }}
+                  </button>
+                }
+                @if (authService.hasPermission('AUTOMATION_DELETE')) {
+                  <button (click)="onRemove(schedule)" class="admin-table-action-danger">Eliminar</button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="admin-table-empty">No se encontraron automatizaciones</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-table>
+</div>
+
+@if (showCreateModal()) {
+  <app-form-modal title="Nueva automatizacion" (close)="cancelCreate()">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Usuario (UUID)</label>
+        <input
+          [(ngModel)]="formData.userId"
+          name="userId"
+          required
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder="UUID del usuario"
+        />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Clave unica</label>
+        <input
+          [(ngModel)]="formData.automationKey"
+          name="automationKey"
+          required
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder="ej: clima-santiago"
+        />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Titulo</label>
+        <input
+          [(ngModel)]="formData.title"
+          name="title"
+          required
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder="ej: Clima en Santiago"
+        />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Instruccion</label>
+        <textarea
+          [(ngModel)]="formData.instruction"
+          name="instruction"
+          rows="3"
+          required
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder="¿Que debe preguntar al asistente?"
+        ></textarea>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Expresion Cron</label>
+        <input
+          [(ngModel)]="formData.cronExpression"
+          name="cronExpression"
+          required
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+          placeholder="0 8 * * *"
+        />
+        <p class="mt-1 text-xs text-gray-400">minuto hora dia mes dia-semana</p>
+      </div>
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+        <input [(ngModel)]="formData.isActive" name="isActive" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20" />
+        Activo
+      </label>
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          [disabled]="saving"
+          class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50"
+        >
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" (click)="cancelCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}
+
+@if (showEditModal() && editFormData; as edit) {
+  <app-form-modal title="Editar automatizacion" (close)="cancelEdit()">
+    <form (ngSubmit)="onUpdate()" class="space-y-4">
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Usuario (UUID)</label>
+        <input [(ngModel)]="edit.userId" name="edit-userId" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Clave unica</label>
+        <input [(ngModel)]="edit.automationKey" name="edit-automationKey" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Titulo</label>
+        <input [(ngModel)]="edit.title" name="edit-title" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Instruccion</label>
+        <textarea
+          [(ngModel)]="edit.instruction"
+          name="edit-instruction"
+          rows="3"
+          required
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+        ></textarea>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Expresion Cron</label>
+        <input [(ngModel)]="edit.cronExpression" name="edit-cronExpression" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+        <input [(ngModel)]="edit.isActive" name="edit-isActive" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20" />
+        Activo
+      </label>
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          [disabled]="saving"
+          class="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50"
+        >
+          {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+        <button type="button" (click)="cancelEdit()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">Cancelar</button>
+      </div>
+    </form>
+  </app-form-modal>
+}

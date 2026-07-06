@@ -1,4 +1,10 @@
-export type AssistantChannel = 'web' | 'mobile' | 'whatsapp' | 'telegram' | 'local_voice';
+export type AssistantChannel =
+  | 'web'
+  | 'mobile'
+  | 'whatsapp'
+  | 'telegram'
+  | 'local_voice'
+  | 'automation';
 
 export type AssistantMessageRole = 'user' | 'assistant' | 'system';
 
@@ -13,6 +19,7 @@ export type AssistantRealtimeEventName =
   | 'assistant.agent.processing'
   | 'assistant.agent.completed'
   | 'assistant.agent.failed'
+  | 'assistant.automation.received'
   | 'assistant.session.updated'
   | 'voice.synthesizing'
   | 'voice.ready'
@@ -23,8 +30,39 @@ export type AssistantRealtimeStatus =
   | 'processing'
   | 'completed'
   | 'failed'
+  | 'automation_received'
   | 'synthesizing'
   | 'ready';
+
+export type OpenClawAutomationEventType =
+  | 'automation.started'
+  | 'automation.completed'
+  | 'automation.failed';
+
+export type OpenClawAutomationSeverity = 'INFO' | 'WARN' | 'ERROR';
+
+export type OpenClawAutomationSessionStrategy = 'user_automation_inbox' | 'automation_key';
+
+export interface OpenClawAutomationEventCommand {
+  eventId: string;
+  type: OpenClawAutomationEventType;
+  userId: string;
+  automationKey: string;
+  title: string;
+  message: string;
+  severity?: OpenClawAutomationSeverity;
+  sessionStrategy?: OpenClawAutomationSessionStrategy;
+  externalRunId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+}
+
+export interface OpenClawAutomationEventResponse {
+  eventId: string;
+  status: 'processed' | 'duplicate';
+  sessionId: string;
+  messageId: string;
+}
 
 export interface JoinAssistantSessionCommand {
   sessionId: string;

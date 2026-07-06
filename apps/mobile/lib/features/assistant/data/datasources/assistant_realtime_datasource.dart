@@ -107,6 +107,7 @@ const _eventNames = [
   'assistant.agent.processing',
   'assistant.agent.completed',
   'assistant.agent.failed',
+  'assistant.automation.received',
   'assistant.session.updated',
   'voice.synthesizing',
   'voice.ready',

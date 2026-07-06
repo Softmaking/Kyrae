@@ -113,6 +113,10 @@ Audit list pagination shape is defined in `packages/shared-contracts/src/audit/a
 
 Assistant message and task shapes are defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /messages`, `POST /messages/tasks`, and `GET /messages/tasks/:id`.
 
+OpenClaw automation event shapes are defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` and implemented by `POST /openclaw/events`.
+
+Automation schedule shapes are defined in `packages/shared-contracts/src/automation/automation.contracts.ts` and implemented by `GET /automation-schedules`, `POST /automation-schedules`, `PATCH /automation-schedules/:id`, and `DELETE /automation-schedules/:id`.
+
 Assistant voice message and voice output shapes are defined in `packages/shared-contracts/src/voice/voice.contracts.ts` and implemented by `POST /voice/messages` and `POST /voice/speak`.
 
 When changing an endpoint:
@@ -198,11 +202,13 @@ Rules:
 - `GET /messages/tasks/:id` is the current backend entrypoint for polling task status.
 - `GET /sessions` is the current backend entrypoint for assistant session lists and uses cursor pagination with a default limit of 10.
 - `GET /sessions/:id/messages` is the current backend entrypoint for persisted assistant message history.
+- `POST /openclaw/events` is the internal backend entrypoint for OpenClaw cron automation results and requires `OPENCLAW_EVENTS_API_KEY`.
 - Socket.IO event handling for assistant realtime status is implemented in `apps/backend/src/messages/messages.gateway.ts`.
 - `OpenClawService` is the current backend adapter for OpenClaw-compatible request/response behavior.
 - `apps/openclaw-http-adapter` is the repository-owned HTTP wrapper for deployments where Kyrae must call an external OpenClaw CLI/runtime through `POST /messages`.
 - `sessionId` is the canonical API identifier for assistant context; `conversationId` remains a temporary compatibility alias.
 - `openclaw_requests` persists OpenClaw request payloads, response payloads, status, errors, and duration.
+- `openclaw_events` persists OpenClaw cron automation event idempotency and links to the generated automation assistant message.
 - Mobile local notification behavior is implemented in `apps/mobile/lib/core/notifications/` and is best-effort while the app process is alive.
 - Mobile assistant session history is implemented in `apps/mobile/lib/features/assistant/` and uses `GET /sessions` with a default page size of 10 plus a manual "Ver más" flow.
 - Web and mobile assistant realtime clients consume Socket.IO events for received, processing, completed, failed, and session updated states.

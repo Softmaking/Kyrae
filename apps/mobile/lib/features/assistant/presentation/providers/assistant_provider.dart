@@ -422,12 +422,20 @@ class AssistantController extends Notifier<AssistantState> {
 
   void _handleRealtimeEvent(Map<String, dynamic> event) {
     final sessionId = event['sessionId'];
-    if (sessionId is! String || sessionId != state.conversationId) return;
+    if (sessionId is! String) return;
 
     final status = event['status'];
     final eventName = event['eventName'];
     final role = event['role'];
     final content = event['content'];
+
+    if (sessionId != state.conversationId) {
+      if (status == 'automation_received' || eventName == 'assistant.session.updated') {
+        unawaited(loadSessions());
+        _notifyIfAppIsInactive();
+      }
+      return;
+    }
 
     if (eventName is String && eventName.startsWith('voice.')) {
       _handleVoiceRealtimeEvent(event);
@@ -454,6 +462,15 @@ class AssistantController extends Notifier<AssistantState> {
       unawaited(loadSessions());
       _notifyIfAppIsInactive();
       if (added) unawaited(_speakAssistantMessage(message));
+      return;
+    }
+
+    if (status == 'automation_received' && role == 'assistant' && content is String) {
+      final message = _messageFromRealtime(event, AssistantMessageRole.assistant);
+      _addMessage(message);
+      state = state.copyWith(isSending: false, errorMessage: null);
+      unawaited(loadSessions());
+      _notifyIfAppIsInactive();
       return;
     }
 

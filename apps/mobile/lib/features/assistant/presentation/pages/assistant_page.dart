@@ -426,6 +426,16 @@ class _SessionListItem extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Text('·', style: TextStyle(color: AppColors.slate400)),
                   const SizedBox(width: 8),
+                  Text(
+                    _channelLabel(session.channel),
+                    style: const TextStyle(
+                      color: AppColors.slate500,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('·', style: TextStyle(color: AppColors.slate400)),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _formatShortDate(lastDate),
@@ -444,6 +454,16 @@ class _SessionListItem extends StatelessWidget {
       ),
     );
   }
+}
+
+String _channelLabel(String channel) {
+  return switch (channel) {
+    'automation' => 'Automatización',
+    'local_voice' => 'Voz local',
+    'mobile' => 'Mobile',
+    'web' => 'Web',
+    _ => channel,
+  };
 }
 
 class _SessionLoadingItem extends StatelessWidget {

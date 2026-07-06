@@ -8,6 +8,8 @@ import { Conversation } from '../messages/conversation.entity';
 import { AssistantMessageTask } from '../messages/assistant-message-task.entity';
 import { Message } from '../messages/message.entity';
 import { OpenClawRequestTrace } from '../messages/openclaw-request.entity';
+import { AutomationSchedule } from '../automation-schedules/automation-schedule.entity';
+import { OpenClawEvent } from '../openclaw-events/openclaw-event.entity';
 import { Organization } from '../organizations/organization.entity';
 import { UserOrganization } from '../organizations/user-organization.entity';
 import { Permission } from '../permissions/permission.entity';
@@ -35,10 +37,12 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
       Branch,
       UserBranch,
       AppConfig,
+      AutomationSchedule,
       Conversation,
       AssistantMessageTask,
       Message,
       OpenClawRequestTrace,
+      OpenClawEvent,
       VoiceEvent,
     ],
     synchronize: false,

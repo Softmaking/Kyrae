@@ -5,6 +5,10 @@
   "packageManager": "pnpm@10.16.0",
   "scripts": {
     "start": "node src/server.js",
-    "check": "node --check src/server.js"
+    "send-event": "node src/send-event.js",
+    "check": "node --check src/server.js && node --check src/send-event.js"
+  },
+  "dependencies": {
+    "cron-parser": "^5.6.1"
   }
 }

@@ -1,6 +1,7 @@
 export type AdminMenuIcon =
   | 'dashboard'
   | 'assistant'
+  | 'automation'
   | 'organizations'
   | 'branches'
   | 'users'
@@ -38,6 +39,13 @@ export const ADMIN_MENU: readonly AdminMenuSection[] = [
         icon: 'assistant',
         description: 'Chat web con el asistente',
         requiredPermissions: ['ASSISTANT_CHAT_USE'],
+      },
+      {
+        label: 'Automatizaciones',
+        route: '/automation-schedules',
+        icon: 'automation',
+        description: 'Gestion de automatizaciones programadas',
+        requiredPermissions: ['AUTOMATION_READ'],
       },
       {
         label: 'Organizaciones',

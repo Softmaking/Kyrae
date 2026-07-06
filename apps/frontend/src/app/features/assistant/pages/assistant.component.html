@@ -57,7 +57,7 @@
           >
             <span class="block truncate text-sm font-semibold text-slate-900">{{ session.title || 'Sin título' }}</span>
             <span class="mt-1 block text-xs text-slate-500">
-              {{ session.messageCount }} mensajes · {{ session.channel }}
+              {{ session.messageCount }} mensajes · {{ channelLabel(session.channel) }}
             </span>
             <span class="mt-1 block text-xs text-slate-400">
               {{ (session.lastMessageAt || session.updatedAt) | date: 'short' }}

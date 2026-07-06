@@ -1,9 +1,10 @@
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Routes } from '@angular/router';
-import { AUDIT_ROUTES } from './features/audit/audit.routes';
 import { ASSISTANT_ROUTES } from './features/assistant/assistant.routes';
+import { AUDIT_ROUTES } from './features/audit/audit.routes';
 import { AUTH_ROUTES } from './features/auth/auth.routes';
+import { AUTOMATION_SCHEDULES_ROUTES } from './features/automation-schedules/automation-schedules.routes';
 import { AuthService } from './features/auth/services/auth.service';
 import { BRANCHES_ROUTES } from './features/branches/branches.routes';
 import { CONFIGURATION_ROUTES } from './features/configuration/configuration.routes';
@@ -26,6 +27,7 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', children: DASHBOARD_ROUTES },
       { path: 'assistant', children: ASSISTANT_ROUTES },
+      { path: 'automation-schedules', children: AUTOMATION_SCHEDULES_ROUTES },
       { path: 'organizations', children: ORGANIZATIONS_ROUTES },
       { path: 'branches', children: BRANCHES_ROUTES },
       { path: 'users', children: USERS_ROUTES },
