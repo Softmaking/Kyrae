@@ -5,6 +5,7 @@ import 'package:kyrae_mobile/app/theme/app_theme.dart';
 import 'package:kyrae_mobile/core/lifecycle/app_lifecycle_provider.dart';
 import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
 import 'package:kyrae_mobile/features/assistant/presentation/providers/assistant_provider.dart';
+import 'package:kyrae_mobile/features/assistant/presentation/widgets/assistant_message_bubble.dart';
 
 class AssistantPage extends ConsumerStatefulWidget {
   const AssistantPage({super.key});
@@ -134,7 +135,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                   const SizedBox(height: 16),
                   if (state.isLoadingHistory) const _HistoryLoadingBanner(),
                   if (state.messages.isEmpty) const _EmptyState(),
-                  ...state.messages.map(_MessageBubble.new),
+                  ...state.messages.map(AssistantMessageBubble.new),
                   if (state.isRecording) const _VoiceStatusBubble(text: 'Grabando audio...'),
                   if (state.isTranscribing)
                     const _VoiceStatusBubble(text: 'Transcribiendo y enviando audio...'),
@@ -632,60 +633,6 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble(this.message);
-
-  final AssistantMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final isUser = message.role == AssistantMessageRole.user;
-
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 310),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isUser ? AppColors.blue600 : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: isUser ? null : Border.all(color: AppColors.slate200),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.slate200.withValues(alpha: 0.45),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isUser ? 'Tú' : 'Asistente',
-              style: TextStyle(
-                color: isUser ? Colors.white70 : AppColors.slate500,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              message.content,
-              style: TextStyle(
-                color: isUser ? Colors.white : AppColors.slate800,
-                fontSize: 14,
-                height: 1.35,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _ThinkingBubble extends StatelessWidget {
   const _ThinkingBubble();
