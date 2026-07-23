@@ -1,53 +1,38 @@
-name: kyrae
+name: kyrae-platform
 
 services:
-  postgres:
-    image: postgres:18-alpine
-    container_name: kyrae-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: kyrae
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d kyrae"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - kyrae-network
-
   backend:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
     container_name: kyrae-backend
     restart: unless-stopped
+    env_file:
+      - ${SERVER_ROOT:?SERVER_ROOT is required}/secrets/kyrae/backend.env
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
+      NODE_ENV: production
       PORT: 3000
-      DB_HOST: postgres
+      DB_HOST: kyrae-postgres
       DB_PORT: 5432
-      DB_NAME: kyrae
-      DB_USER: postgres
-      DB_PASS: postgres
-      JWT_SECRET: dev_jwt_secret_change_me
-      JWT_EXPIRES_IN: 900
-      JWT_REFRESH_SECRET: dev_refresh_secret_change_me
-      JWT_REFRESH_EXPIRES_IN: 604800
-      ADMIN_EMAIL: admin@softmaking.cl
-      ADMIN_PASSWORD: ChangeMe123!
-    depends_on:
-      postgres:
-        condition: service_healthy
+      DB_NAME: DbKyrae
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
-      - kyrae-network
+      kyrae-network:
+        aliases:
+          - kyrae-backend
 
   frontend:
     build:
@@ -56,15 +41,15 @@ services:
     container_name: kyrae-frontend
     restart: unless-stopped
     ports:
-      - "4200:80"
+      - "127.0.0.1:4200:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
-      - kyrae-network
-
-volumes:
-  postgres_data:
+      kyrae-network:
+        aliases:
+          - kyrae-frontend
 
 networks:
   kyrae-network:
-    driver: bridge
+    external: true
