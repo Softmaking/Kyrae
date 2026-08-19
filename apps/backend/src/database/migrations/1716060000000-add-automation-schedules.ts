@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddAutomationSchedules1716060000000 implements MigrationInterface {
   name = 'AddAutomationSchedules1716060000000';

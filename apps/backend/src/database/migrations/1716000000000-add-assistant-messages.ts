@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddAssistantMessages1716000000000 implements MigrationInterface {
   name = 'AddAssistantMessages1716000000000';

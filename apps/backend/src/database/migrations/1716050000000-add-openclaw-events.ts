@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddOpenClawEvents1716050000000 implements MigrationInterface {
   name = 'AddOpenClawEvents1716050000000';

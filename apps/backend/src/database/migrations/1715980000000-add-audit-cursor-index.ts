@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddAuditCursorIndex1715980000000 implements MigrationInterface {
   name = 'AddAuditCursorIndex1715980000000';

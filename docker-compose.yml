@@ -1,55 +1,196 @@
 name: kyrae-platform
 
 services:
+
+  # ============================================================
+  # Backend
+  # ============================================================
   backend:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
+
     container_name: kyrae-backend
     restart: unless-stopped
+
     env_file:
       - ${SERVER_ROOT:?SERVER_ROOT is required}/secrets/kyrae/backend.env
+
     ports:
       - "127.0.0.1:3000:3000"
+
     environment:
       NODE_ENV: production
       PORT: 3000
+
+      # --------------------------------------------------------
+      # Database
+      # --------------------------------------------------------
       DB_HOST: kyrae-postgres
       DB_PORT: 5432
       DB_NAME: DbKyrae
+
+      # --------------------------------------------------------
+      # JWT
+      # --------------------------------------------------------
+      JWT_EXPIRES_IN: 900
+      JWT_REFRESH_EXPIRES_IN: 604800
+
+      # --------------------------------------------------------
+      # Initial administrator
+      # --------------------------------------------------------
+      ADMIN_EMAIL: admin@softmaking.cl
+
+      # --------------------------------------------------------
+      # Security
+      # --------------------------------------------------------
+      SECURITY_PASSWORD_MIN_LENGTH: 8
+      SECURITY_PASSWORD_REQUIRE_UPPERCASE: "true"
+      SECURITY_PASSWORD_REQUIRE_LOWERCASE: "true"
+      SECURITY_PASSWORD_REQUIRE_NUMBERS: "true"
+      SECURITY_PASSWORD_REQUIRE_SPECIAL: "false"
+
+      SECURITY_MAX_LOGIN_ATTEMPTS: 5
+      SECURITY_LOCKOUT_DURATION_MINUTES: 15
+
+      SECURITY_CRITICAL_LOGIN_FAILURES_THRESHOLD: 10
+      SECURITY_CRITICAL_LOGIN_FAILURES_WINDOW_MINUTES: 5
+
+      SECURITY_CRITICAL_LOGIN_SPRAY_DISTINCT_USERS_THRESHOLD: 5
+      SECURITY_CRITICAL_LOGIN_SPRAY_WINDOW_MINUTES: 10
+
+      SECURITY_CRITICAL_LOCKED_ATTEMPTS_THRESHOLD: 5
+      SECURITY_CRITICAL_LOCKED_ATTEMPTS_WINDOW_MINUTES: 10
+
+      SECURITY_CRITICAL_INVALID_TOKEN_THRESHOLD: 8
+      SECURITY_CRITICAL_INVALID_TOKEN_WINDOW_MINUTES: 5
+
+      # --------------------------------------------------------
+      # OpenClaw
+      # --------------------------------------------------------
+      OPENCLAW_MODE: mock
+      OPENCLAW_TIMEOUT_MS: 0
+
+      # --------------------------------------------------------
+      # Voice STT
+      # --------------------------------------------------------
+      VOICE_STT_MODE: mock
+      VOICE_STT_TIMEOUT_MS: 30000
+      VOICE_MAX_AUDIO_MB: 10
+
+      # --------------------------------------------------------
+      # Voice TTS
+      # --------------------------------------------------------
+      VOICE_TTS_MODE: mock
+      VOICE_TTS_MODEL: eleven_multilingual_v2
+      VOICE_TTS_TIMEOUT_MS: 30000
+
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
+
     networks:
       kyrae-network:
         aliases:
           - kyrae-backend
 
+  # ============================================================
+  # Database migrations
+  #
+  # Servicio temporal:
+  # docker compose run --rm backend-migrate
+  # ============================================================
+  backend-migrate:
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile
+      target: builder
+
+    env_file:
+      - ${SERVER_ROOT:?SERVER_ROOT is required}/secrets/kyrae/backend.env
+
+    environment:
+      NODE_ENV: production
+
+      # --------------------------------------------------------
+      # Database
+      # --------------------------------------------------------
+      DB_HOST: kyrae-postgres
+      DB_PORT: 5432
+      DB_NAME: DbKyrae
+
+    working_dir: /app/apps/backend
+
+    command:
+      - pnpm
+      - migration:run:prod
+
+    networks:
+      - kyrae-network
+
+    restart: "no"
+  # ============================================================
+  # Database seed
+  #
+  # Servicio temporal:
+  # docker compose run --rm backend-seed
+  # ============================================================
+  backend-seed:
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile
+      target: builder
+
+    env_file:
+      - ${SERVER_ROOT:?SERVER_ROOT is required}/secrets/kyrae/backend.env
+
+    environment:
+      NODE_ENV: production
+      DB_HOST: kyrae-postgres
+      DB_PORT: 5432
+      DB_NAME: DbKyrae
+      ADMIN_EMAIL: admin@softmaking.cl
+
+    working_dir: /app/apps/backend
+
+    command:
+      - pnpm
+      - seed:prod
+
+    networks:
+      - kyrae-network
+
+    restart: "no"
+
+  # ============================================================
+  # Frontend
+  # ============================================================
   frontend:
     build:
       context: .
       dockerfile: infra/docker/frontend/Dockerfile
+
     container_name: kyrae-frontend
     restart: unless-stopped
+
     ports:
       - "127.0.0.1:4200:80"
+
     depends_on:
       backend:
         condition: service_healthy
+
     networks:
       kyrae-network:
         aliases:
           - kyrae-frontend
 
+# ==============================================================
+# Networks
+# ==============================================================
 networks:
   kyrae-network:
     external: true

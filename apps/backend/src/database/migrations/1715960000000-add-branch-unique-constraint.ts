@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddBranchUniqueConstraint1715960000000 implements MigrationInterface {
   name = 'AddBranchUniqueConstraint1715960000000';

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddAssistantVoiceOutputPermission1716040000000 implements MigrationInterface {
   name = 'AddAssistantVoiceOutputPermission1716040000000';

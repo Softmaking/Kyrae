@@ -23,7 +23,11 @@
     "migration:run": "node -r ts-node/register ./node_modules/typeorm/cli.js -d ./src/database/data-source.ts migration:run",
     "migration:revert": "node -r ts-node/register ./node_modules/typeorm/cli.js -d ./src/database/data-source.ts migration:revert",
     "migration:generate": "node -r ts-node/register ./node_modules/typeorm/cli.js -d ./src/database/data-source.ts migration:generate ./src/database/migrations/auto",
-    "seed": "ts-node src/database/seed.ts"
+    "migration:run:prod": "node ./node_modules/typeorm/cli.js -d ./dist/database/data-source.js migration:run",
+    "migration:show:prod": "node ./node_modules/typeorm/cli.js -d ./dist/database/data-source.js migration:show",
+    "migration:revert:prod": "node ./node_modules/typeorm/cli.js -d ./dist/database/data-source.js migration:revert",
+    "seed": "ts-node src/database/seed.ts",
+    "seed:prod": "node dist/database/seed.js"
   },
   "dependencies": {
     "@kyrae/shared-contracts": "workspace:*",
