@@ -1,5 +1,6 @@
 import type { OpenClawRequest, OpenClawResponse } from '@kyrae/shared-contracts';
 import { BadGatewayException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import type { AgentProviderHealth } from '@kyrae/shared-contracts';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -18,6 +19,31 @@ export class OpenClawService {
       requestId: `mock-${Date.now()}`,
       metadata: { mode: 'mock' },
     };
+  }
+
+  async healthCheck(): Promise<AgentProviderHealth> {
+    const mode = this.configService.get<string>('OPENCLAW_MODE', 'mock');
+    if (mode === 'mock') return { provider: 'OPENCLAW', status: 'AVAILABLE' };
+
+    const baseUrl = this.configService.get<string>('OPENCLAW_BASE_URL');
+    if (!baseUrl)
+      return {
+        provider: 'OPENCLAW',
+        status: 'UNAVAILABLE',
+        message: 'OpenClaw no está configurado.',
+      };
+    try {
+      const response = await fetch(`${baseUrl.replace(/\/$/, '')}/health`);
+      return response.ok
+        ? { provider: 'OPENCLAW', status: 'AVAILABLE' }
+        : { provider: 'OPENCLAW', status: 'DEGRADED' };
+    } catch {
+      return {
+        provider: 'OPENCLAW',
+        status: 'UNAVAILABLE',
+        message: 'OpenClaw no está disponible.',
+      };
+    }
   }
 
   private async sendHttpMessage(request: OpenClawRequest): Promise<OpenClawResponse> {

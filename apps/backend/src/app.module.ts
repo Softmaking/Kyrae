@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from './audit/audit.module';
+import { AgentsModule } from './agents/agents.module';
 import { AutomationSchedulesModule } from './automation-schedules/automation-schedules.module';
 import { AuthModule } from './auth/auth.module';
 import { BranchesModule } from './branches/branches.module';
@@ -21,7 +23,9 @@ import { typeOrmConfig } from './database/typeorm.config';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync(typeOrmConfig),
+    ScheduleModule.forRoot(),
     HealthModule,
+    AgentsModule,
     AuthModule,
     UsersModule,
     RolesModule,

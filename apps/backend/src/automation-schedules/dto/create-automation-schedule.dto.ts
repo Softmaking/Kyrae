@@ -1,9 +1,18 @@
-import type { CreateAutomationScheduleCommand } from '@kyrae/shared-contracts';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import type { CreateAutomationScheduleCommand, NotifyMode } from '@kyrae/shared-contracts';
+import {
+  IsBoolean,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateAutomationScheduleDto implements CreateAutomationScheduleCommand {
+  @IsOptional()
   @IsUUID()
-  userId!: string;
+  userId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -27,4 +36,9 @@ export class CreateAutomationScheduleDto implements CreateAutomationScheduleComm
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['always', 'on_content', 'silent'])
+  notifyMode?: NotifyMode;
 }

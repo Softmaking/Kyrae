@@ -9,7 +9,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { AssistantChannel, AssistantSessionStatus } from '@kyrae/shared-contracts';
+import type {
+  AgentProviderType,
+  AssistantChannel,
+  AssistantSessionStatus,
+} from '@kyrae/shared-contracts';
 import { User } from '../users/user.entity';
 import { Message } from './message.entity';
 
@@ -30,6 +34,14 @@ export class Conversation {
 
   @Column({ type: 'varchar', length: 20, default: 'active' })
   status!: AssistantSessionStatus;
+
+  @Index('idx_conversations_agent_id')
+  @Column({ name: 'agent_id', type: 'uuid', nullable: true })
+  agentId?: string | null;
+
+  @Index('idx_conversations_provider')
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  provider?: AgentProviderType | null;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

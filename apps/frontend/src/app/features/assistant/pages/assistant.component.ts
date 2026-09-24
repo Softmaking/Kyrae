@@ -39,6 +39,8 @@ export class AssistantComponent implements OnInit, OnDestroy {
   readonly sessions = signal<AssistantSessionDto[]>([]);
   readonly messages = signal<AssistantMessageDto[]>([]);
   readonly loading = signal(false);
+  readonly streamingContent = signal('');
+  readonly executionId = signal<string | null>(null);
   readonly sessionsLoading = signal(false);
   readonly sessionsLoadingMore = signal(false);
   readonly historyLoading = signal(false);
@@ -69,6 +71,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.realtimeService.on('assistant.agent.processing', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.agent.completed', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.agent.failed', this.handleRealtimeEvent);
+    this.realtimeService.on('assistant.agent.stream', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.automation.received', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.session.updated', this.handleRealtimeEvent);
     this.realtimeService.on('voice.synthesizing', this.handleVoiceRealtimeEvent);
@@ -82,6 +85,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.realtimeService.off('assistant.agent.processing', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.agent.completed', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.agent.failed', this.handleRealtimeEvent);
+    this.realtimeService.off('assistant.agent.stream', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.automation.received', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.session.updated', this.handleRealtimeEvent);
     this.realtimeService.off('voice.synthesizing', this.handleVoiceRealtimeEvent);
@@ -199,6 +203,8 @@ export class AssistantComponent implements OnInit, OnDestroy {
     this.stopSpokenResponse();
     this.sessionId.set(null);
     this.messages.set([]);
+    this.streamingContent.set('');
+    this.executionId.set(null);
     this.error.set(null);
     this.draft = '';
   }
@@ -228,6 +234,20 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.error.set('No se pudo enviar el mensaje al asistente. Intenta nuevamente.');
       this.draft = message;
       this.loading.set(false);
+    }
+  }
+
+  async stopActiveExecution(): Promise<void> {
+    const id = this.executionId();
+    if (!id) return;
+    try {
+      await this.assistantService.stopExecution(id);
+      this.loading.set(false);
+      this.streamingContent.set('');
+      this.executionId.set(null);
+      this.clearTaskPolling();
+    } catch {
+      this.error.set('No se pudo detener la ejecución.');
     }
   }
 
@@ -370,10 +390,20 @@ export class AssistantComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (event.eventType === 'STARTED' || event.eventType === 'TOKEN') {
+      this.loading.set(true);
+      this.executionId.set(event.executionId ?? this.executionId());
+      if (event.delta) this.streamingContent.update((content) => content + event.delta);
+      this.scrollMessagesToBottom();
+      return;
+    }
+
     if (event.status === 'completed' && event.role === 'assistant' && event.content) {
       const message = this.eventToMessage(event);
       const added = this.addMessage(message);
       this.completeActiveTask(event.taskId);
+      this.streamingContent.set('');
+      this.executionId.set(null);
       this.loading.set(false);
       this.error.set(null);
       this.scrollMessagesToBottom();
@@ -398,6 +428,8 @@ export class AssistantComponent implements OnInit, OnDestroy {
 
     if (event.status === 'failed') {
       this.completeActiveTask(event.taskId);
+      this.streamingContent.set('');
+      this.executionId.set(null);
       this.loading.set(false);
       this.error.set(event.errorMessage ?? 'Kyrae no pudo procesar la solicitud.');
       void this.loadSessions();

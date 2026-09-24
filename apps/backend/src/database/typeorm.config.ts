@@ -16,6 +16,9 @@ import { Permission } from '../permissions/permission.entity';
 import { Role } from '../roles/role.entity';
 import { User } from '../users/user.entity';
 import { VoiceEvent } from '../voice/voice-event.entity';
+import { Agent } from '../agents/agent.entity';
+import { AgentExecution } from '../agents/agent-execution.entity';
+import { AgentExecutionEvent } from '../agents/agent-execution-event.entity';
 
 export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
@@ -44,6 +47,9 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
       OpenClawRequestTrace,
       OpenClawEvent,
       VoiceEvent,
+      Agent,
+      AgentExecution,
+      AgentExecutionEvent,
     ],
     synchronize: false,
   }),

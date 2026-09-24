@@ -1,5 +1,7 @@
 export type AutomationScheduleStatus = 'active' | 'inactive';
 
+export type NotifyMode = 'always' | 'on_content' | 'silent';
+
 export interface AutomationScheduleDto {
   id: string;
   userId: string;
@@ -8,18 +10,20 @@ export interface AutomationScheduleDto {
   instruction: string;
   cronExpression: string;
   isActive: boolean;
+  notifyMode: NotifyMode;
   lastRunAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateAutomationScheduleCommand {
-  userId: string;
+  userId?: string;
   automationKey: string;
   title: string;
   instruction: string;
   cronExpression: string;
   isActive?: boolean;
+  notifyMode?: NotifyMode;
 }
 
 export type UpdateAutomationScheduleCommand = Partial<CreateAutomationScheduleCommand>;

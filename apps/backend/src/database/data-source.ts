@@ -16,6 +16,9 @@ import { OpenClawRequestTrace } from '../messages/openclaw-request.entity';
 import { AutomationSchedule } from '../automation-schedules/automation-schedule.entity';
 import { OpenClawEvent } from '../openclaw-events/openclaw-event.entity';
 import { VoiceEvent } from '../voice/voice-event.entity';
+import { Agent } from '../agents/agent.entity';
+import { AgentExecution } from '../agents/agent-execution.entity';
+import { AgentExecutionEvent } from '../agents/agent-execution-event.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -41,6 +44,9 @@ export default new DataSource({
     OpenClawRequestTrace,
     OpenClawEvent,
     VoiceEvent,
+    Agent,
+    AgentExecution,
+    AgentExecutionEvent,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

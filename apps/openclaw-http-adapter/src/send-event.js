@@ -1,3 +1,12 @@
+/**
+ * DEPRECATED — Backend native cron (AutomationCronService) reemplaza este script.
+ * Mantenido para retrocompatibilidad.
+ * 
+ * El backend NestJS ahora ejecuta schedules vía @nestjs/schedule cada 1 minuto,
+ * usando OpenClawService (mismo pipeline que chat). Este script se mantiene
+ * como fallback para despliegues que aun dependan del OS cron.
+ */
+
 const { execFile } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const fs = require('node:fs');

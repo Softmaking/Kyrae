@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
-import { OpenClawModule } from '../openclaw/openclaw.module';
+import { AgentsModule } from '../agents/agents.module';
 import { AssistantMessageTask } from './assistant-message-task.entity';
 import { Conversation } from './conversation.entity';
 import { Message } from './message.entity';
@@ -19,7 +19,7 @@ import { SessionsController } from './sessions.controller';
       secret: process.env.JWT_SECRET ?? 'dev_jwt_secret_change_me',
       signOptions: { expiresIn: Number(process.env.JWT_EXPIRES_IN ?? 900) },
     }),
-    OpenClawModule,
+    AgentsModule,
     AuditModule,
   ],
   controllers: [MessagesController, SessionsController],

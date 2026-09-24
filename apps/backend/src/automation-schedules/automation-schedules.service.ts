@@ -39,6 +39,7 @@ export class AutomationSchedulesService {
         instruction: dto.instruction,
         cronExpression: dto.cronExpression,
         isActive: dto.isActive ?? true,
+        notifyMode: dto.notifyMode ?? 'always',
       })
     );
 
@@ -142,6 +143,7 @@ export class AutomationSchedulesService {
       instruction: schedule.instruction,
       cronExpression: schedule.cronExpression,
       isActive: schedule.isActive,
+      notifyMode: schedule.notifyMode,
       lastRunAt: schedule.lastRunAt?.toISOString() ?? null,
       createdAt: schedule.createdAt.toISOString(),
       updatedAt: schedule.updatedAt.toISOString(),

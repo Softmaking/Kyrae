@@ -1,3 +1,4 @@
+import type { NotifyMode } from '@kyrae/shared-contracts';
 import {
   Column,
   CreateDateColumn,
@@ -39,6 +40,9 @@ export class AutomationSchedule {
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
+
+  @Column({ name: 'notify_mode', type: 'varchar', length: 20, default: 'always' })
+  notifyMode!: NotifyMode;
 
   @Column({ name: 'last_run_at', type: 'timestamp', nullable: true })
   lastRunAt!: Date | null;

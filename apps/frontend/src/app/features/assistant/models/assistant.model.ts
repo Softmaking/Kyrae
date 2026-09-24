@@ -1,4 +1,7 @@
 export type {
+  AgentApprovalCommand,
+  AgentExecutionDto,
+  AgentSteerCommand,
   AssistantChannel,
   AssistantMessageDto,
   AssistantMessageRole,

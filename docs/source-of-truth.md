@@ -218,6 +218,23 @@ Rules:
 - Real OpenClaw runtime behavior remains external to this repository; `apps/openclaw-http-adapter` only wraps the external `openclaw` CLI process.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 
+## Agent Providers and Executions
+
+Source of truth:
+
+- `packages/shared-contracts/src/agents/agent.contracts.ts`
+- `apps/backend/src/agents/`
+- `apps/backend/src/database/migrations/1716080000000-add-agent-providers-and-executions.ts`
+
+Rules:
+
+- Clients call Kyrae endpoints only.
+- `AgentOrchestratorService` is the backend entrypoint for provider-neutral agent operations.
+- `AgentProviderFactory` resolves an explicit agent provider, then `DEFAULT_AGENT_PROVIDER`.
+- Hermes is the default; OpenClaw remains an explicit secondary provider.
+- Provider credentials are backend-only.
+- `AgentExecution.id` is the internal execution identifier used by lifecycle endpoints.
+
 ## Environment Variables
 
 Backend source of truth:

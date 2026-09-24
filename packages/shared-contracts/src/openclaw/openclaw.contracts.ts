@@ -19,6 +19,7 @@ export type AssistantRealtimeEventName =
   | 'assistant.agent.processing'
   | 'assistant.agent.completed'
   | 'assistant.agent.failed'
+  | 'assistant.agent.stream'
   | 'assistant.automation.received'
   | 'assistant.session.updated'
   | 'voice.synthesizing'
@@ -81,6 +82,10 @@ export interface AssistantRealtimeEvent {
     agent?: 'main';
     [key: string]: unknown;
   };
+  executionId?: string | null;
+  eventType?: string | null;
+  sequence?: number | null;
+  delta?: string | null;
   createdAt: string;
 }
 

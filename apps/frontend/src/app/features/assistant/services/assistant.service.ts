@@ -5,6 +5,9 @@ import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api.config';
 import type {
   AssistantMessageTaskDto,
+  AgentApprovalCommand,
+  AgentExecutionDto,
+  AgentSteerCommand,
   ListAssistantSessionMessagesResponse,
   ListAssistantSessionsResponse,
   SendAssistantMessageCommand,
@@ -74,6 +77,39 @@ export class AssistantService {
     return firstValueFrom(
       this.http.get<ListAssistantSessionMessagesResponse>(
         `${this.apiBaseUrl}/sessions/${sessionId}/messages`
+      )
+    );
+  }
+
+  async stopExecution(executionId: string): Promise<AgentExecutionDto> {
+    return firstValueFrom(
+      this.http.post<AgentExecutionDto>(
+        `${this.apiBaseUrl}/agent-executions/${executionId}/stop`,
+        {}
+      )
+    );
+  }
+
+  async steerExecution(
+    executionId: string,
+    command: AgentSteerCommand
+  ): Promise<AgentExecutionDto> {
+    return firstValueFrom(
+      this.http.post<AgentExecutionDto>(
+        `${this.apiBaseUrl}/agent-executions/${executionId}/steer`,
+        command
+      )
+    );
+  }
+
+  async approveExecution(
+    executionId: string,
+    command: AgentApprovalCommand
+  ): Promise<AgentExecutionDto> {
+    return firstValueFrom(
+      this.http.post<AgentExecutionDto>(
+        `${this.apiBaseUrl}/agent-executions/${executionId}/approval`,
+        command
       )
     );
   }

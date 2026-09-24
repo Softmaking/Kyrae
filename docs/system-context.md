@@ -10,6 +10,7 @@ It includes:
 - NestJS backend
 - Flutter mobile client (official beta)
 - OpenClaw HTTP adapter for the external OpenClaw runtime
+- Hermes and OpenClaw agent providers behind a Kyrae orchestrator
 - STT gateway for speech-to-text provider integration
 - PostgreSQL + TypeORM
 - Shared contracts package
@@ -39,6 +40,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - automation-schedules
 - messages
 - openclaw
+- agents
 - voice
 - health
 - security
@@ -143,7 +145,7 @@ Current implementation:
 - Public API uses `sessionId`; the current database implementation still uses `conversations` as the internal sessions table.
 - OpenClaw request/response traces are stored in PostgreSQL through `openclaw_requests`.
 - OpenClaw cron automation events are stored in PostgreSQL through `openclaw_events`, create assistant messages with `channel=automation`, and use one per-user session titled `Automatizaciones de Kyrae` in V1.
-- The backend uses `OpenClawService` as the only OpenClaw adapter.
+- The backend uses `AgentOrchestratorService` as the provider-neutral entrypoint and `OpenClawAgentProvider` as the OpenClaw adapter.
 - `OPENCLAW_MODE=mock` returns a deterministic local response.
 - `OPENCLAW_MODE=http` sends normalized requests to `POST {OPENCLAW_BASE_URL}/messages` and includes `Authorization: Bearer {OPENCLAW_API_KEY}` when configured.
 - `apps/openclaw-http-adapter` exposes internal `GET /health` and `POST /messages`, wraps the external `openclaw agent` CLI, defaults to `OPENCLAW_HTTP_HOST=127.0.0.1`, and requires `OPENCLAW_HTTP_API_KEY` unless explicitly disabled for local development.
@@ -159,10 +161,28 @@ Current implementation:
 Not implemented:
 
 - OpenClaw runtime inside this repository.
-- WebSocket streaming.
+- WebSocket streaming from the Hermes runtime; Kyrae normalizes streaming into Socket.IO events.
 - External messaging channels.
 - Agent task execution beyond adapter request/response.
 - Real push notifications through FCM/APNs for completed assistant tasks.
+
+## Agent Providers and Executions
+
+Current implementation:
+
+- `AgentProviderFactory` resolves an explicit agent provider, then `DEFAULT_AGENT_PROVIDER`.
+- Hermes is the default provider and supports CHAT SSE, RUN lifecycle, approvals, stop, steer, health, capabilities, skills, toolsets, and models.
+- OpenClaw remains a secondary provider through the existing HTTP Adapter.
+- `AgentExecution` and `AgentExecutionEvent` persist provider-neutral lifecycle state and normalized events.
+- Existing OpenClaw conversations are migrated as `legacy-openclaw`; new conversations resolve Hermes by default.
+
+Environment variables:
+
+- `DEFAULT_AGENT_PROVIDER`
+- `HERMES_BASE_URL`
+- `HERMES_API_KEY`
+- `HERMES_DEFAULT_MODEL`
+- `HERMES_REQUEST_TIMEOUT_MS`
 
 `AuthProvider` values:
 
@@ -265,11 +285,13 @@ Frontend exposes `findByKey()`, but no component currently consumes it.
 Current implementation:
 
 - CRUD for automation schedule definitions
-- Each schedule has: userId, automationKey, title, instruction, cronExpression, isActive, lastRunAt
+- Each schedule has: userId, automationKey, title, instruction, cronExpression, isActive, notifyMode, lastRunAt
 - Permissions: `AUTOMATION_READ`, `AUTOMATION_CREATE`, `AUTOMATION_UPDATE`, `AUTOMATION_DELETE`
 - Frontend UI in `/automation-schedules`
-- send-event.js `--batch` mode reads active schedules from `GET /automation-schedules` and executes due ones
-- OS cron runs `send-event.js --batch` periodically
+- `notifyMode` per schedule: `'always'` (default, notify always), `'on_content'` (only substantive content), `'silent'` (no notification)
+- Backend-native cron (`AutomationCronService`) runs every minute via `@nestjs/schedule`
+- `AutomationCronService` fetches active schedules, checks due schedules with `cron-parser`, calls `OpenClawService.sendMessage()`, persists results via `OpenClawEventsService.processScheduleExecution()`, and updates `lastRunAt`
+- `send-event.js` is deprecated as the scheduler (kept for fallback); `OS cron` no longer required
 
 ## Audit
 

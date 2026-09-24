@@ -1,10 +1,12 @@
 import type {
+  AgentChatMessage,
   AssistantChannel,
   AssistantMessageDto,
   AssistantMessageTaskDto,
   AssistantRealtimeEvent,
   AssistantRealtimeEventName,
   AssistantRealtimeStatus,
+  AgentStreamEvent,
   AssistantSessionDto,
   ListAssistantSessionMessagesResponse,
   ListAssistantSessionsResponse,
@@ -16,7 +18,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
-import { OpenClawService } from '../openclaw/openclaw.service';
+import { AgentOrchestratorService } from '../agents/agent-orchestrator.service';
 import { AssistantMessageTask } from './assistant-message-task.entity';
 import { Conversation } from './conversation.entity';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -38,7 +40,7 @@ export class MessagesService {
     private readonly taskRepository: Repository<AssistantMessageTask>,
     @InjectRepository(OpenClawRequestTrace)
     private readonly openClawRequestRepository: Repository<OpenClawRequestTrace>,
-    private readonly openClawService: OpenClawService,
+    private readonly agentOrchestrator: AgentOrchestratorService,
     private readonly auditService: AuditService,
     private readonly messagesGateway: MessagesGateway
   ) {}
@@ -120,7 +122,6 @@ export class MessagesService {
         role: 'user',
         content,
         status: 'completed',
-        channel,
         metadata: null,
       })
     );
@@ -250,7 +251,30 @@ export class MessagesService {
     let openClawResponse: OpenClawResponse;
 
     try {
-      openClawResponse = await this.openClawService.sendMessage(openClawRequest);
+      const result = await this.agentOrchestrator.sendChat({
+        userId: params.userId,
+        conversationId: conversation.id,
+        channel,
+        agentId: conversation.agentId ?? undefined,
+        sessionKey: this.buildAgentSessionKey(
+          conversation.agentId ?? 'default',
+          params.userId,
+          conversation.id
+        ),
+        messages: await this.getConversationMessages(conversation.id),
+        onEvent: (event, execution) =>
+          this.emitAgentStream(conversation.id, event, channel, null, execution.id),
+      });
+      const executionId = result.execution.id;
+      openClawResponse = {
+        message: result.response.message,
+        requestId: result.response.providerRequestId,
+        metadata: {
+          ...(result.response.metadata ?? {}),
+          provider: result.execution.provider,
+          executionId,
+        },
+      };
       await this.completeOpenClawRequestTrace(requestTrace, openClawResponse, startedAt);
     } catch (error) {
       await this.failOpenClawRequestTrace(requestTrace, error, startedAt);
@@ -363,7 +387,26 @@ export class MessagesService {
         channel,
       });
 
-      const openClawResponse = await this.openClawService.sendMessage(openClawRequest);
+      const result = await this.agentOrchestrator.sendChat({
+        userId,
+        conversationId: task.conversationId,
+        channel,
+        agentId:
+          (await this.findOwnedConversation(task.conversationId, userId)).agentId ?? undefined,
+        sessionKey: this.buildAgentSessionKey('default', userId, task.conversationId),
+        messages: await this.getConversationMessages(task.conversationId),
+        onEvent: (event, execution) =>
+          this.emitAgentStream(task.conversationId, event, channel, task.id, execution.id),
+      });
+      const openClawResponse: OpenClawResponse = {
+        message: result.response.message,
+        requestId: result.response.providerRequestId,
+        metadata: {
+          ...(result.response.metadata ?? {}),
+          provider: result.execution.provider,
+          executionId: result.execution.id,
+        },
+      };
       await this.completeOpenClawRequestTrace(requestTrace, openClawResponse, startedAt);
 
       const assistantMessage = await this.messageRepository.save(
@@ -376,6 +419,7 @@ export class MessagesService {
           metadata: {
             openClawRequestId: requestTrace.id,
             openClawExternalRequestId: openClawResponse.requestId ?? null,
+            executionId: result.execution.id,
             ...(openClawResponse.metadata ?? {}),
           },
         })
@@ -454,12 +498,15 @@ export class MessagesService {
     channel: AssistantChannel;
   }): Promise<Conversation> {
     if (!params.conversationId) {
+      const agent = await this.agentOrchestrator.resolveAgent();
       return this.conversationRepository.save(
         this.conversationRepository.create({
           userId: params.userId,
           title: params.titleSeed.slice(0, 80),
           channel: params.channel,
           status: 'active',
+          agentId: agent.id,
+          provider: agent.provider,
         })
       );
     }
@@ -550,6 +597,48 @@ export class MessagesService {
       .execute();
   }
 
+  private async getConversationMessages(conversationId: string): Promise<AgentChatMessage[]> {
+    const messages = await this.messageRepository.find({
+      where: { conversationId },
+      order: { createdAt: 'ASC' },
+    });
+    return messages
+      .filter(
+        (message) =>
+          message.role === 'user' || message.role === 'assistant' || message.role === 'system'
+      )
+      .map((message) => ({ role: message.role, content: message.content }));
+  }
+
+  private buildAgentSessionKey(agentId: string, userId: string, conversationId: string): string {
+    return `agent:${agentId}:user:${userId}:conversation:${conversationId}`;
+  }
+
+  private emitAgentStream(
+    sessionId: string,
+    event: AgentStreamEvent,
+    channel: AssistantChannel,
+    taskId: string | null = null,
+    executionId: string | null = null
+  ): void {
+    const data =
+      event.data && typeof event.data === 'object' ? (event.data as Record<string, unknown>) : {};
+    this.emitRealtime('assistant.agent.stream', {
+      sessionId,
+      taskId,
+      messageId: null,
+      role: 'assistant',
+      status: event.type === 'ERROR' ? 'failed' : 'processing',
+      content: typeof data.text === 'string' ? data.text : null,
+      errorMessage: null,
+      channel,
+      eventType: event.type,
+      sequence: event.sequence ?? null,
+      delta: typeof data.text === 'string' ? data.text : null,
+      executionId,
+    });
+  }
+
   private emitRealtime(
     eventName: AssistantRealtimeEventName,
     params: {
@@ -561,6 +650,10 @@ export class MessagesService {
       content: string | null;
       errorMessage: string | null;
       channel: AssistantChannel;
+      executionId?: string | null;
+      eventType?: string | null;
+      sequence?: number | null;
+      delta?: string | null;
     }
   ): void {
     this.messagesGateway.emitToSession(eventName, {
@@ -572,6 +665,10 @@ export class MessagesService {
       content: params.content,
       errorMessage: params.errorMessage,
       metadata: { channel: params.channel, agent: 'main' },
+      executionId: params.executionId ?? null,
+      eventType: params.eventType ?? null,
+      sequence: params.sequence ?? null,
+      delta: params.delta ?? null,
       createdAt: new Date().toISOString(),
     });
   }

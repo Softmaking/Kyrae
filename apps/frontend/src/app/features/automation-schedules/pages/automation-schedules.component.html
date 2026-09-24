@@ -32,6 +32,7 @@
           <th>Clave</th>
           <th>Cron</th>
           <th>Estado</th>
+          <th>Notificar</th>
           <th>Ultima ejecucion</th>
           <th>Creado</th>
           <th>Acciones</th>
@@ -53,6 +54,11 @@
                 {{ schedule.isActive ? 'Activo' : 'Inactivo' }}
               </span>
             </td>
+            <td class="text-sm text-gray-500">
+              <span [class]="schedule.notifyMode === 'silent' ? 'admin-table-status-inactive' : 'admin-table-status-active'">
+                {{ schedule.notifyMode === 'always' ? 'Siempre' : schedule.notifyMode === 'on_content' ? 'Contenido relevante' : 'Silencioso' }}
+              </span>
+            </td>
             <td class="text-sm text-gray-500">{{ formatDate(schedule.lastRunAt) }}</td>
             <td class="text-sm text-gray-500">{{ formatDate(schedule.createdAt) }}</td>
             <td>
@@ -71,7 +77,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="7" class="admin-table-empty">No se encontraron automatizaciones</td>
+            <td colspan="8" class="admin-table-empty">No se encontraron automatizaciones</td>
           </tr>
         }
       </tbody>
@@ -82,16 +88,6 @@
 @if (showCreateModal()) {
   <app-form-modal title="Nueva automatizacion" (close)="cancelCreate()">
     <form (ngSubmit)="onSubmit()" class="space-y-4">
-      <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700">Usuario (UUID)</label>
-        <input
-          [(ngModel)]="formData.userId"
-          name="userId"
-          required
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
-          placeholder="UUID del usuario"
-        />
-      </div>
       <div>
         <label class="mb-1 block text-sm font-medium text-gray-700">Clave unica</label>
         <input
@@ -124,15 +120,42 @@
         ></textarea>
       </div>
       <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700">Expresion Cron</label>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Intervalo de ejecucion</label>
+        <select
+          [ngModel]="selectedCronPreset() ? selectedCronPreset() : ''"
+          (ngModelChange)="onCronPresetChange($event)"
+          name="cronPreset"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+        >
+          <option value="" disabled>Selecciona un intervalo</option>
+          @for (preset of cronPresets; track preset.value) {
+            <option [value]="preset.value">{{ preset.label }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Expresion Cron (avanzado)</label>
         <input
           [(ngModel)]="formData.cronExpression"
+          (ngModelChange)="onRawCronChange()"
           name="cronExpression"
           required
           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
           placeholder="0 8 * * *"
         />
         <p class="mt-1 text-xs text-gray-400">minuto hora dia mes dia-semana</p>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Notificar cuando</label>
+        <select
+          [(ngModel)]="formData.notifyMode"
+          name="notifyMode"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+        >
+          <option value="always">Siempre</option>
+          <option value="on_content">Solo si hay contenido relevante</option>
+          <option value="silent">Silencioso (sin notificacion)</option>
+        </select>
       </div>
       <label class="inline-flex items-center gap-2 text-sm text-gray-700">
         <input [(ngModel)]="formData.isActive" name="isActive" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20" />
@@ -156,10 +179,6 @@
   <app-form-modal title="Editar automatizacion" (close)="cancelEdit()">
     <form (ngSubmit)="onUpdate()" class="space-y-4">
       <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700">Usuario (UUID)</label>
-        <input [(ngModel)]="edit.userId" name="edit-userId" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
-      </div>
-      <div>
         <label class="mb-1 block text-sm font-medium text-gray-700">Clave unica</label>
         <input [(ngModel)]="edit.automationKey" name="edit-automationKey" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
       </div>
@@ -178,8 +197,34 @@
         ></textarea>
       </div>
       <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700">Expresion Cron</label>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Intervalo de ejecucion</label>
+        <select
+          [ngModel]="edit.cronExpression"
+          (ngModelChange)="onEditCronPresetChange($event)"
+          name="edit-cronPreset"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+        >
+          <option value="" disabled>Selecciona un intervalo</option>
+          @for (preset of cronPresets; track preset.value) {
+            <option [value]="preset.value">{{ preset.label }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Expresion Cron (avanzado)</label>
         <input [(ngModel)]="edit.cronExpression" name="edit-cronExpression" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10" />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700">Notificar cuando</label>
+        <select
+          [(ngModel)]="edit.notifyMode"
+          name="edit-notifyMode"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-brand-primary focus:ring-3 focus:ring-brand-primary/10"
+        >
+          <option value="always">Siempre</option>
+          <option value="on_content">Solo si hay contenido relevante</option>
+          <option value="silent">Silencioso (sin notificacion)</option>
+        </select>
       </div>
       <label class="inline-flex items-center gap-2 text-sm text-gray-700">
         <input [(ngModel)]="edit.isActive" name="edit-isActive" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20" />

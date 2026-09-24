@@ -4,17 +4,29 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../auth/services/auth.service';
 import { AppTableComponent } from '../../../shared/components/table/app-table.component';
 import { FormModalComponent } from '../../../shared/components/form-modal/form-modal.component';
+import type { NotifyMode } from '@kyrae/shared-contracts';
 import type { AutomationSchedule } from '../models/automation-schedules.model';
 import { AutomationSchedulesService } from '../services/automation-schedules.service';
 
 type ScheduleForm = {
-  userId: string;
   automationKey: string;
   title: string;
   instruction: string;
   cronExpression: string;
   isActive: boolean;
+  notifyMode: NotifyMode;
 };
+
+const CRON_PRESETS = [
+  { label: 'Cada 5 minutos', value: '*/5 * * * *' },
+  { label: 'Cada 10 minutos', value: '*/10 * * * *' },
+  { label: 'Cada 30 minutos', value: '*/30 * * * *' },
+  { label: 'Cada 1 hora', value: '0 * * * *' },
+  { label: 'Cada 6 horas', value: '0 */6 * * *' },
+  { label: 'Cada dia (8:00)', value: '0 8 * * *' },
+  { label: 'Cada semana (lun 9:00)', value: '0 9 * * 1' },
+  { label: 'Personalizado', value: '' },
+] as const;
 
 @Component({
   selector: 'app-automation-schedules',
@@ -24,20 +36,23 @@ type ScheduleForm = {
   styleUrl: './automation-schedules.component.css',
 })
 export class AutomationSchedulesComponent implements OnInit {
+  readonly cronPresets = CRON_PRESETS;
+
   showCreateModal = signal(false);
   showEditModal = signal(false);
   saving = false;
   readonly editingId = signal<string | null>(null);
 
   formData: ScheduleForm = {
-    userId: '',
     automationKey: '',
     title: '',
     instruction: '',
     cronExpression: '',
     isActive: true,
+    notifyMode: 'always',
   };
   editFormData: ScheduleForm | null = null;
+  selectedCronPreset = signal('');
 
   readonly searchTerm = signal('');
   readonly currentPage = signal(1);
@@ -78,10 +93,21 @@ export class AutomationSchedulesComponent implements OnInit {
     await this.service.load(this.activeFilters);
   }
 
+  onCronPresetChange(presetValue: string): void {
+    this.selectedCronPreset.set(presetValue);
+    if (presetValue) {
+      this.formData.cronExpression = presetValue;
+    }
+  }
+
+  onRawCronChange(): void {
+    const matched = CRON_PRESETS.find((p) => p.value === this.formData.cronExpression);
+    this.selectedCronPreset.set(matched ? matched.value : '');
+  }
+
   async onSubmit(): Promise<void> {
     const data = this.formData;
     if (
-      !data.userId.trim() ||
       !data.automationKey.trim() ||
       !data.title.trim() ||
       !data.instruction.trim() ||
@@ -92,23 +118,24 @@ export class AutomationSchedulesComponent implements OnInit {
     this.saving = true;
     try {
       await this.service.create({
-        userId: data.userId.trim(),
         automationKey: data.automationKey.trim(),
         title: data.title.trim(),
         instruction: data.instruction.trim(),
         cronExpression: data.cronExpression.trim(),
         isActive: data.isActive,
+        notifyMode: data.notifyMode,
       });
 
       this.showCreateModal.set(false);
       this.formData = {
-        userId: '',
         automationKey: '',
         title: '',
         instruction: '',
         cronExpression: '',
         isActive: true,
+        notifyMode: 'always',
       };
+      this.selectedCronPreset.set('');
       await this.loadSchedules();
     } finally {
       this.saving = false;
@@ -118,25 +145,27 @@ export class AutomationSchedulesComponent implements OnInit {
   cancelCreate(): void {
     this.showCreateModal.set(false);
     this.formData = {
-      userId: '',
       automationKey: '',
       title: '',
       instruction: '',
       cronExpression: '',
       isActive: true,
+      notifyMode: 'always',
     };
+    this.selectedCronPreset.set('');
   }
 
   startEdit(schedule: AutomationSchedule): void {
     this.editingId.set(schedule.id);
     this.editFormData = {
-      userId: schedule.userId,
       automationKey: schedule.automationKey,
       title: schedule.title,
       instruction: schedule.instruction,
       cronExpression: schedule.cronExpression,
       isActive: schedule.isActive,
+      notifyMode: schedule.notifyMode,
     };
+    this.selectedCronPreset.set('');
     this.showEditModal.set(true);
   }
 
@@ -146,13 +175,18 @@ export class AutomationSchedulesComponent implements OnInit {
     this.showEditModal.set(false);
   }
 
+  onEditCronPresetChange(presetValue: string): void {
+    if (presetValue && this.editFormData) {
+      this.editFormData.cronExpression = presetValue;
+    }
+  }
+
   async onUpdate(): Promise<void> {
     const id = this.editingId();
     const data = this.editFormData;
     if (
       !id ||
       !data ||
-      !data.userId.trim() ||
       !data.automationKey.trim() ||
       !data.title.trim() ||
       !data.instruction.trim() ||
@@ -163,12 +197,12 @@ export class AutomationSchedulesComponent implements OnInit {
     this.saving = true;
     try {
       await this.service.update(id, {
-        userId: data.userId.trim(),
         automationKey: data.automationKey.trim(),
         title: data.title.trim(),
         instruction: data.instruction.trim(),
         cronExpression: data.cronExpression.trim(),
         isActive: data.isActive,
+        notifyMode: data.notifyMode,
       });
       this.cancelEdit();
       await this.loadSchedules();

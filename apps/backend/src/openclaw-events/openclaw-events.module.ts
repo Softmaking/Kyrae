@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { AgentsModule } from '../agents/agents.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
+import { AutomationSchedule } from '../automation-schedules/automation-schedule.entity';
 import { Conversation } from '../messages/conversation.entity';
 import { Message } from '../messages/message.entity';
 import { MessagesModule } from '../messages/messages.module';
@@ -12,11 +14,13 @@ import { OpenClawEventsApiKeyGuard } from './guards/openclaw-events-api-key.guar
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([OpenClawEvent, User, Conversation, Message]),
+    AgentsModule,
+    TypeOrmModule.forFeature([OpenClawEvent, User, Conversation, Message, AutomationSchedule]),
     MessagesModule,
     AuditModule,
   ],
   controllers: [OpenClawEventsController],
   providers: [OpenClawEventsService, OpenClawEventsApiKeyGuard],
+  exports: [OpenClawEventsService],
 })
 export class OpenClawEventsModule {}

@@ -28,7 +28,7 @@ export class AutomationSchedulesController {
   @Post()
   @Permissions('AUTOMATION_CREATE')
   create(@Body() dto: CreateAutomationScheduleDto, @Req() req: Request & { user: JwtPayload }) {
-    return this.service.create(dto, req.user.sub);
+    return this.service.create({ ...dto, userId: dto.userId ?? req.user.sub }, req.user.sub);
   }
 
   @Get()
