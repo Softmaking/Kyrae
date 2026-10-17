@@ -1,15 +1,14 @@
-import 'package:flutter/foundation.dart';
-
 class ApiConstants {
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'KYRAE_API_BASE_URL',
+  );
   static const String _localNetworkBaseUrl = 'https://lightbox-books-allied-manner.trycloudflare.com';
 
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'https://lightbox-books-allied-manner.trycloudflare.com';
-    }
-
-    return _localNetworkBaseUrl;
-  }
+  static String get baseUrl =>
+      (_configuredBaseUrl.trim().isEmpty
+              ? _localNetworkBaseUrl
+              : _configuredBaseUrl.trim())
+          .replaceFirst(RegExp(r'\/$'), '');
 
   static const String login = '/auth/login';
   static const String refreshToken = '/auth/refresh';
