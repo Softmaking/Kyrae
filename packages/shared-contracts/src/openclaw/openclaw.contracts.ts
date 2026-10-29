@@ -1,3 +1,9 @@
+import type {
+  AssistantAttachmentDto,
+  AssistantContextManifestDto,
+  AssistantOutputMetadata,
+} from '../attachments/attachment.contracts';
+
 export type AssistantChannel =
   | 'web'
   | 'mobile'
@@ -90,14 +96,23 @@ export interface AssistantRealtimeEvent {
 }
 
 export interface SendAssistantMessageCommand {
+  /** Trimmed nonempty instruction, at most 4,000 characters, including attachment sends. */
   message: string;
   sessionId?: string;
   /** @deprecated Use sessionId. */
   conversationId?: string;
   channel?: AssistantChannel;
+  /** Attachment sends require all three fields below and channel web/mobile.
+   * Both session aliases, if supplied, must agree and match the batch target.
+   */
+  uploadBatchId?: string;
+  /** Ordered unique 1–5 ids; must equal the batch's entire ready set after removals. */
+  attachmentIds?: string[];
+  /** Owner-scoped UUID idempotency key; identical retry returns the persisted result. */
+  clientMessageId?: string;
 }
 
-export interface AssistantMessageDto {
+export interface AssistantMessageDto extends AssistantOutputMetadata {
   id: string;
   sessionId: string;
   /** @deprecated Use sessionId. */
@@ -109,20 +124,24 @@ export interface AssistantMessageDto {
   metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string | null;
+  /** Absent on legacy rows is rendered as []; no extracted content or image bytes. */
+  attachments?: AssistantAttachmentDto[];
+  contextManifest?: AssistantContextManifestDto | null;
 }
 
-export interface SendAssistantMessageResponse {
+export interface SendAssistantMessageResponse extends AssistantOutputMetadata {
   sessionId: string;
   /** @deprecated Use sessionId. */
   conversationId: string;
   userMessage: AssistantMessageDto;
   assistantMessage: AssistantMessageDto;
   openClawRequestId: string | null;
+  contextManifest?: AssistantContextManifestDto | null;
 }
 
 export type AssistantTaskStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-export interface AssistantMessageTaskDto {
+export interface AssistantMessageTaskDto extends AssistantOutputMetadata {
   id: string;
   status: AssistantTaskStatus;
   sessionId: string;
@@ -134,6 +153,7 @@ export interface AssistantMessageTaskDto {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+  contextManifest?: AssistantContextManifestDto | null;
 }
 
 export interface AssistantSessionDto {

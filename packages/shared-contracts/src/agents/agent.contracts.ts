@@ -1,4 +1,8 @@
 import type { AssistantChannel } from '../openclaw/openclaw.contracts';
+import type {
+  AttachmentImageMediaType,
+  AssistantOutputMetadata,
+} from '../attachments/attachment.contracts';
 
 export type AgentProviderType = 'HERMES' | 'OPENCLAW';
 
@@ -24,10 +28,29 @@ export type AgentStreamEventType =
   | 'COMPLETED'
   | 'ERROR';
 
-export interface AgentChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+export interface AgentTextContentPart {
+  type: 'text';
+  text: string;
 }
+
+/** Internal normalized derivative, not a public upload DTO or provider wire payload.
+ * Validate decoded bytes <=1 MiB, long edge <=2,048 px, at most five images/request.
+ * Base64 is canonical RFC 4648 (no data-URL prefix, whitespace or arbitrary fetch URL).
+ * Never persist/log these bytes; the provider alone serializes the verified transport.
+ */
+export interface AgentImageContentPart {
+  type: 'image';
+  attachmentId: string;
+  mediaType: AttachmentImageMediaType;
+  base64: string;
+}
+
+export type AgentContentPart = AgentTextContentPart | AgentImageContentPart;
+
+/** Typed parts are CHAT-only. RUN consumers must reject them, not coerce to strings. */
+export type AgentChatMessage =
+  | { role: 'system' | 'assistant'; content: string }
+  | { role: 'user'; content: string | AgentContentPart[] };
 
 export interface AgentChatRequest {
   agentId: string;
@@ -40,7 +63,7 @@ export interface AgentChatRequest {
   metadata?: Record<string, unknown>;
 }
 
-export interface AgentChatResponse {
+export interface AgentChatResponse extends AssistantOutputMetadata {
   message: string;
   providerRequestId?: string;
   metadata?: Record<string, unknown>;
