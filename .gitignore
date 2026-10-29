@@ -59,3 +59,10 @@ packages/shared-contracts/dist/
 
 # OpenAPI/Scalar
 scalar/
+
+# Python Bytecode
+__pycache__/
+*.pyc
+
+# Khrae worker local scratch
+apps/attachment-worker/build/
