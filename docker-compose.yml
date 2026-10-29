@@ -85,6 +85,14 @@ services:
       VOICE_TTS_MODEL: eleven_multilingual_v2
       VOICE_TTS_TIMEOUT_MS: 30000
 
+      # --------------------------------------------------------
+      # Assistant attachments private storage (shared with the worker)
+      # --------------------------------------------------------
+      ASSISTANT_ATTACHMENT_STORAGE_ROOT: /srv/attachments
+
+    volumes:
+      - attachments-storage:/srv/attachments
+
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
       interval: 15s
@@ -188,9 +196,63 @@ services:
         aliases:
           - kyrae-frontend
 
+  # ============================================================
+  # Assistant attachment processing worker (internal; no published ports)
+  # ============================================================
+  attachment-worker:
+    build:
+      context: ./apps/attachment-worker
+      dockerfile: Dockerfile
+
+    container_name: kyrae-attachment-worker
+    restart: unless-stopped
+
+    env_file:
+      - ${SERVER_ROOT:?SERVER_ROOT is required}/secrets/kyrae/backend.env
+
+    environment:
+      DB_HOST: kyrae-postgres
+      DB_PORT: 5432
+      DB_NAME: DbKyrae
+
+      ASSISTANT_ATTACHMENT_STORAGE_ROOT: /srv/attachments
+
+      WORKER_POLL_SECONDS: 2
+      WORKER_LEASE_SECONDS: 60
+      WORKER_HEARTBEAT_SECONDS: 15
+      WORKER_MAX_TRANSIENT_ATTEMPTS: 2
+      WORKER_JOB_DEADLINE_SECONDS: 120
+      WORKER_CPU_SECONDS: 60
+
+    volumes:
+      - attachments-storage:/srv/attachments
+
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    pids_limit: 64
+    mem_limit: 2g
+    cpus: "2"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      kyrae-network:
+        aliases:
+          - kyrae-attachment-worker
+
 # ==============================================================
 # Networks
 # ==============================================================
 networks:
   kyrae-network:
     external: true
+
+volumes:
+  attachments-storage:

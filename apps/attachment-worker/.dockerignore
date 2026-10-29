@@ -1,0 +1,15 @@
+*
+!Dockerfile
+!Dockerfile.proof
+!requirements-proof.txt
+!requirements.txt
+!tests/
+!tests/*.py
+!tests/*.sql
+!build/
+!build/*.py
+!build/*.cc
+!src/
+!src/**
+!tools/
+!tools/*.sh

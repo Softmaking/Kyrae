@@ -1,0 +1,3 @@
+# Runtime dependencies only; the production image installs with --only-binary.
+psycopg[binary,pool]==3.2.13
+Pillow==11.3.0

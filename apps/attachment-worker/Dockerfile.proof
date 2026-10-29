@@ -1,0 +1,48 @@
+# T01 only: no coordinator, database, API or production worker.
+FROM python:3.12-slim-bookworm@sha256:6dd8b6dab6b3adc7812bab69eca5dbdc1a5cc690ad28306d234ffb4ef8ac9753 AS codec-builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake ninja-build pkg-config libjpeg62-turbo-dev libpng-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY build /build
+ARG CODEC_BUILD_JOBS=2
+RUN CODEC_BUILD_JOBS=${CODEC_BUILD_JOBS} python /build/codecs.py
+RUN dpkg-query -W > /usr/local/share/codec-proof/builder-packages.tsv
+
+FROM python:3.12-slim-bookworm@sha256:6dd8b6dab6b3adc7812bab69eca5dbdc1a5cc690ad28306d234ffb4ef8ac9753 AS native
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 OMP_THREAD_LIMIT=1 LD_LIBRARY_PATH=/usr/local/lib
+# Debian's normal bookworm/bookworm-security sources; exact direct versions.
+# Transitive apt dependencies are inventoried, not snapshot-locked.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils=22.12.0-2+deb12u3 \
+    tesseract-ocr=5.3.0-2 \
+    tesseract-ocr-eng=1:4.1.0-2 tesseract-ocr-spa=1:4.1.0-2 \
+    libjpeg62-turbo=1:2.1.5-2 bubblewrap=0.8.0-2+deb12u1 \
+    libseccomp2=2.5.4-1+deb12u1 fonts-dejavu-core=2.37-6 time=1.9-0.2 \
+    && dpkg-query -W > /opt/dpkg-proof.tsv \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=codec-builder /usr/local/lib/libheif.so.1.23.7 /usr/local/lib/
+COPY --from=codec-builder /usr/local/lib/libde265.so.0.2.3 /usr/local/lib/
+COPY --from=codec-builder /usr/local/bin/heif-dec /usr/local/bin/heif-info /usr/local/bin/codec-security-proof /usr/local/bin/
+COPY --from=codec-builder /usr/local/share/codec-proof /usr/local/share/codec-proof
+RUN ldconfig && test ! -e /usr/lib/aarch64-linux-gnu/libheif.so.1 \
+    && test ! -e /usr/lib/x86_64-linux-gnu/libheif.so.1 \
+    && ldd /usr/local/lib/libheif.so.1 && heif-dec --list-decoders
+COPY requirements-proof.txt /opt/requirements-proof.txt
+RUN pip install --no-cache-dir --only-binary=:all: -r /opt/requirements-proof.txt \
+    && pip freeze > /opt/pip-proof.txt
+
+FROM native AS fixture-builder
+# Encoder exists only in this build stage; release decoding cannot use its libs.
+RUN pip install --no-cache-dir --only-binary=:all: --no-deps \
+    --target=/fixture-tools pillow-heif==1.1.1
+COPY tests/make_hevc_fixture.py /make_hevc_fixture.py
+RUN PYTHONPATH=/fixture-tools python /make_hevc_fixture.py /fixtures
+
+FROM native AS proof
+COPY --from=fixture-builder /fixtures /fixtures
+COPY tests /opt/proof
+# Harmless sentinels for negative sandbox assertions; never real credentials.
+RUN mkdir /private-coordinator /persistent-proof /other-job \
+    && touch /private-coordinator/sentinel /persistent-proof/sentinel /other-job/sentinel
+USER 65534:65534
+ENTRYPOINT ["python", "/opt/proof/native_proof.py"]
