@@ -17,6 +17,8 @@ import 'package:kyrae_mobile/features/assistant/domain/usecases/send_assistant_v
 import 'package:kyrae_mobile/features/assistant/domain/usecases/speak_assistant_message_usecase.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'attachment_provider.dart';
+import '../../data/models/assistant_message_model.dart';
 
 enum VoiceOutputStatus { idle, synthesizing, playing, paused, failed }
 
@@ -116,6 +118,9 @@ class AssistantController extends Notifier<AssistantState> {
     _notifications = ref.watch(localNotificationServiceProvider);
     _realtimeDataSource = ref.watch(assistantRealtimeDataSourceProvider);
     _realtimeDataSource.setHandler(_handleRealtimeEvent);
+    ref.listen(authControllerProvider.select((s) => s.user?.id), (previous, next) {
+      if (previous != next) { _sessionEpoch++; newSession(); }
+    });
     unawaited(_realtimeDataSource.connect());
     ref.onDispose(() {
       _audioRecorder.dispose();
@@ -131,6 +136,7 @@ class AssistantController extends Notifier<AssistantState> {
   final AudioPlayer _voiceOutputPlayer = AudioPlayer();
   final Set<String> _spokenMessageIds = <String>{};
   String? _voiceOutputPath;
+  int _sessionEpoch = 0;
 
   late CreateAssistantMessageTaskUseCase _createTaskUseCase;
   late SendAssistantVoiceMessageUseCase _sendVoiceUseCase;
@@ -197,6 +203,8 @@ class AssistantController extends Notifier<AssistantState> {
 
   Future<void> openSession(AssistantSession session) async {
     if (state.isLoadingHistory || state.conversationId == session.id) return;
+    _sessionEpoch++;
+    await ref.read(attachmentControllerProvider.notifier).setSession(session.id);
 
     state = state.copyWith(isLoadingHistory: true, errorMessage: null);
     final result = await _findSessionMessagesUseCase(session.id);
@@ -221,6 +229,8 @@ class AssistantController extends Notifier<AssistantState> {
   }
 
   void newSession() {
+    _sessionEpoch++;
+    unawaited(ref.read(attachmentControllerProvider.notifier).reset());
     unawaited(stopSpokenResponse());
     state = state.copyWith(
       messages: const [],
@@ -270,34 +280,52 @@ class AssistantController extends Notifier<AssistantState> {
   Future<void> send(String message) async {
     final trimmed = message.trim();
     if (trimmed.isEmpty || state.isSending || state.isRecording || state.isTranscribing) return;
+    if (trimmed.length > 4000) {
+      state = state.copyWith(errorMessage: 'La instrucción admite hasta 4.000 caracteres.');
+      return;
+    }
+    final attachments = ref.read(attachmentControllerProvider.notifier);
+    AttachmentSubmission? submission;
+    try { submission = await attachments.prepare(trimmed); }
+    on FormatException catch (e) { state = state.copyWith(errorMessage: e.message); return; }
+    final epoch = _sessionEpoch;
 
     state = state.copyWith(isSending: true, errorMessage: null);
     final result = await _createTaskUseCase(
       message: trimmed,
       conversationId: state.conversationId,
+      uploadBatchId: submission?.uploadBatchId,
+      attachmentIds: submission?.attachmentIds,
+      clientMessageId: submission?.clientMessageId,
     );
+    if (!ref.mounted || epoch != _sessionEpoch) return;
 
     await result.fold(
       (failure) {
+        if (submission != null) attachments.uncertain();
         state = state.copyWith(isSending: false, errorMessage: failure.message);
       },
       (task) async {
+        if (submission != null) await attachments.committed(task.conversationId);
+        if (!ref.mounted || epoch != _sessionEpoch) return;
         state = state.copyWith(
           conversationId: task.conversationId,
           activeTaskId: task.id,
-          messages: [...state.messages, task.userMessage],
+          messages: [...state.messages.where((m) => m.id != task.userMessage.id), task.userMessage],
           errorMessage: null,
         );
         await _realtimeDataSource.joinSession(task.conversationId);
         unawaited(loadSessions());
-        if (!_realtimeDataSource.isConnected) {
-          await _pollTask(task.id);
-        }
+        await _pollTask(task.id);
       },
     );
   }
 
   Future<void> startVoiceRecording() async {
+    if (ref.read(attachmentControllerProvider).files.isNotEmpty) {
+      state = state.copyWith(errorMessage: 'Envía o retira los archivos antes de grabar voz. Se conserva el borrador de archivos.');
+      return;
+    }
     if (state.isSending || state.isRecording || state.isTranscribing) return;
 
     final hasPermission = await _audioRecorder.hasPermission();
@@ -367,9 +395,12 @@ class AssistantController extends Notifier<AssistantState> {
   }
 
   Future<void> _pollTask(String taskId) async {
-    while (state.activeTaskId == taskId) {
+    final epoch = _sessionEpoch;
+    while (ref.mounted && epoch == _sessionEpoch && state.activeTaskId == taskId) {
       await Future<void>.delayed(const Duration(seconds: 5));
+      if (!ref.mounted || epoch != _sessionEpoch || state.activeTaskId != taskId) return;
       final result = await _getTaskUseCase(taskId);
+      if (!ref.mounted || epoch != _sessionEpoch || state.activeTaskId != taskId) return;
 
       final shouldContinue = result.fold(
         (failure) {
@@ -381,6 +412,7 @@ class AssistantController extends Notifier<AssistantState> {
           return false;
         },
         (task) {
+          _replaceCanonical(task.userMessage);
           if (task.status == AssistantTaskStatus.completed &&
               task.assistantMessage != null) {
             state = state.copyWith(
@@ -421,6 +453,7 @@ class AssistantController extends Notifier<AssistantState> {
   }
 
   void _handleRealtimeEvent(Map<String, dynamic> event) {
+    if (!ref.mounted) return;
     final sessionId = event['sessionId'];
     if (sessionId is! String) return;
 
@@ -428,6 +461,10 @@ class AssistantController extends Notifier<AssistantState> {
     final eventName = event['eventName'];
     final role = event['role'];
     final content = event['content'];
+    if ((status == 'completed' || status == 'failed') && sessionId == state.conversationId) {
+      // Binary-free realtime is an invalidation signal; canonical history carries outcomes/manifests.
+      unawaited(_refreshCanonicalHistory(sessionId));
+    }
 
     if (sessionId != state.conversationId) {
       if (status == 'automation_received' || eventName == 'assistant.session.updated') {
@@ -531,6 +568,22 @@ class AssistantController extends Notifier<AssistantState> {
     return true;
   }
 
+  void _replaceCanonical(AssistantMessage message) {
+    final index = state.messages.indexWhere((m) => m.id == message.id);
+    if (index < 0) { _addMessage(message); return; }
+    final messages = [...state.messages]; messages[index] = message;
+    state = state.copyWith(messages: messages);
+  }
+
+  Future<void> _refreshCanonicalHistory(String sessionId) async {
+    final epoch = _sessionEpoch;
+    final result = await _findSessionMessagesUseCase(sessionId);
+    if (!ref.mounted || epoch != _sessionEpoch || state.conversationId != sessionId) return;
+    result.fold((_) {}, (history) {
+      state = state.copyWith(messages: history.messages);
+    });
+  }
+
   Future<void> _speakAssistantMessage(AssistantMessage message) async {
     if (!state.isVoiceOutputEnabled) return;
     if (message.role != AssistantMessageRole.assistant || message.content.trim().isEmpty) return;
@@ -609,14 +662,15 @@ class AssistantController extends Notifier<AssistantState> {
         ? DateTime.tryParse(event['createdAt'] as String) ?? DateTime.now()
         : DateTime.now();
 
-    return AssistantMessage(
-      id:
-          event['messageId'] as String? ??
-          '${event['sessionId']}-${createdAt.toIso8601String()}',
-      conversationId: event['sessionId'] as String,
-      role: fallbackRole,
-      content: event['content'] as String? ?? '',
-      createdAt: createdAt,
-    );
+    final metadata = event['metadata'] is Map ? Map<String, dynamic>.from(event['metadata'] as Map) : <String, dynamic>{};
+    return AssistantMessageModel.fromJson({
+      ...metadata,
+      ...event,
+      'id': event['messageId'] ?? '${event['sessionId']}-${createdAt.toIso8601String()}',
+      'sessionId': event['sessionId'],
+      'role': fallbackRole.name,
+      'content': event['content'] ?? '',
+      'createdAt': createdAt.toIso8601String(),
+    });
   }
 }

@@ -74,12 +74,14 @@ class AuthInterceptor extends Interceptor {
       );
 
       err.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+      await _rebuildBody(err.requestOptions);
       final retryResponse = await _refreshDio.fetch(err.requestOptions);
       handler.resolve(retryResponse);
 
       for (final pending in _pendingRequests) {
         pending.options.headers['Authorization'] = 'Bearer $newAccessToken';
         try {
+          await _rebuildBody(pending.options);
           final response = await _refreshDio.fetch(pending.options);
           pending.handler.resolve(response);
         } catch (e) {
@@ -97,6 +99,17 @@ class AuthInterceptor extends Interceptor {
     } finally {
       _isRefreshing = false;
       _pendingRequests.clear();
+    }
+  }
+
+  Future<void> _rebuildBody(RequestOptions options) async {
+    if (options.cancelToken?.isCancelled == true) throw options.cancelToken!.cancelError!;
+    final builder = options.extra['rebuildBody'];
+    if (builder is Future<FormData> Function()) {
+      options.data = await builder();
+      options.headers.remove(Headers.contentLengthHeader);
+    } else if (options.data is FormData) {
+      options.data = (options.data as FormData).clone();
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
+import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_attachment.dart';
 
 class AssistantMessageModel extends AssistantMessage {
   const AssistantMessageModel({
@@ -7,6 +8,8 @@ class AssistantMessageModel extends AssistantMessage {
     required super.role,
     required super.content,
     required super.createdAt,
+    super.attachments, super.contextManifest, super.partialOutput,
+    super.partialOutputReason, super.partialOutputNotice, super.outputAccounting,
   });
 
   factory AssistantMessageModel.fromJson(Map<String, dynamic> json) {
@@ -16,6 +19,12 @@ class AssistantMessageModel extends AssistantMessage {
       role: _roleFromString(json['role'] as String),
       content: json['content'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      attachments: jsonRecords(json['attachments']).map(AssistantAttachment.fromJson).toList(),
+      contextManifest: json['contextManifest'] as Map<String, dynamic>?,
+      partialOutput: json['partialOutput'] as bool?,
+      partialOutputReason: json['partialOutputReason'] as String?,
+      partialOutputNotice: json['partialOutputNotice'] as String?,
+      outputAccounting: json['outputAccounting'] as Map<String, dynamic>?,
     );
   }
 
@@ -34,10 +43,17 @@ class SendAssistantMessageResultModel extends SendAssistantMessageResult {
     required super.conversationId,
     required super.userMessage,
     required super.assistantMessage,
+    super.contextManifest, super.partialOutput, super.partialOutputReason,
+    super.partialOutputNotice, super.outputAccounting,
   });
 
   factory SendAssistantMessageResultModel.fromJson(Map<String, dynamic> json) {
     return SendAssistantMessageResultModel(
+      contextManifest: json['contextManifest'] as Map<String, dynamic>?,
+      partialOutput: json['partialOutput'] as bool?,
+      partialOutputReason: json['partialOutputReason'] as String?,
+      partialOutputNotice: json['partialOutputNotice'] as String?,
+      outputAccounting: json['outputAccounting'] as Map<String, dynamic>?,
       conversationId: (json['sessionId'] ?? json['conversationId']) as String,
       userMessage: AssistantMessageModel.fromJson(
         json['userMessage'] as Map<String, dynamic>,
@@ -60,10 +76,17 @@ class AssistantMessageTaskModel extends AssistantMessageTask {
     required super.createdAt,
     required super.updatedAt,
     super.completedAt,
+    super.contextManifest, super.partialOutput, super.partialOutputReason,
+    super.partialOutputNotice, super.outputAccounting,
   });
 
   factory AssistantMessageTaskModel.fromJson(Map<String, dynamic> json) {
     return AssistantMessageTaskModel(
+      contextManifest: json['contextManifest'] as Map<String, dynamic>?,
+      partialOutput: json['partialOutput'] as bool?,
+      partialOutputReason: json['partialOutputReason'] as String?,
+      partialOutputNotice: json['partialOutputNotice'] as String?,
+      outputAccounting: json['outputAccounting'] as Map<String, dynamic>?,
       id: json['id'] as String,
       status: _taskStatusFromString(json['status'] as String),
       conversationId: (json['sessionId'] ?? json['conversationId']) as String,

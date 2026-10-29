@@ -36,11 +36,15 @@ class AssistantRemoteDataSource {
   Future<AssistantMessageTaskModel> createMessageTask({
     required String message,
     String? conversationId,
+    String? uploadBatchId, List<String>? attachmentIds, String? clientMessageId,
   }) async {
     try {
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
         '${ApiConstants.messages}/tasks',
         data: <String, dynamic>{
+          'uploadBatchId': ?uploadBatchId,
+          'attachmentIds': ?attachmentIds,
+          'clientMessageId': ?clientMessageId,
           'message': message,
           'sessionId': conversationId,
           'conversationId': conversationId,
@@ -173,6 +177,7 @@ class AssistantRemoteDataSource {
     if (error.response?.statusCode == 403) {
       return 'No tienes permisos para realizar esta acción.';
     }
+    if (error.response?.statusCode == 404) return 'Recurso no disponible o sin acceso.';
 
     final data = error.response?.data;
 

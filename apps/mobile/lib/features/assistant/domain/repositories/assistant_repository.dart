@@ -11,6 +11,7 @@ abstract class AssistantRepository {
   Future<Either<Failure, AssistantMessageTask>> createMessageTask({
     required String message,
     String? conversationId,
+    String? uploadBatchId, List<String>? attachmentIds, String? clientMessageId,
   });
 
   Future<Either<Failure, AssistantMessageTask>> findMessageTask(String taskId);

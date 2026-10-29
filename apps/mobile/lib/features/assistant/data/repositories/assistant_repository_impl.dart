@@ -32,11 +32,13 @@ class AssistantRepositoryImpl implements AssistantRepository {
   Future<Either<Failure, AssistantMessageTask>> createMessageTask({
     required String message,
     String? conversationId,
+    String? uploadBatchId, List<String>? attachmentIds, String? clientMessageId,
   }) async {
     try {
       final result = await remote.createMessageTask(
         message: message,
         conversationId: conversationId,
+        uploadBatchId: uploadBatchId, attachmentIds: attachmentIds, clientMessageId: clientMessageId,
       );
       return Right(result);
     } on ServerException catch (error) {

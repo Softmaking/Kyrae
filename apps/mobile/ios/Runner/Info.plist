@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Kyrae usa el micrófono para enviar mensajes de voz al asistente.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Kyrae permite adjuntar las fotos originales que seleccionas al chat.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

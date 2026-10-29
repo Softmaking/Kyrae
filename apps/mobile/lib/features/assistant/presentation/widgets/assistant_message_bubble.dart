@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:kyrae_mobile/app/theme/app_theme.dart';
 import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
+import 'attachment_widgets.dart';
 
 class AssistantMessageBubble extends StatelessWidget {
   const AssistantMessageBubble(this.message, {super.key});
@@ -42,6 +43,16 @@ class AssistantMessageBubble extends StatelessWidget {
                 letterSpacing: 0.4,
               ),
             ),
+            for (final attachment in message.attachments)
+              StoredAttachmentCard(attachment, key: ValueKey(attachment.id)),
+            if (message.partialOutput == true) Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(message.partialOutputNotice ?? 'Respuesta parcial por límite de salida. No es una respuesta completa.', style: TextStyle(color: isUser ? Colors.white : AppColors.slate700, fontWeight: FontWeight.w700)),
+            ),
+            if (message.outputAccounting != null) Text(
+              'Salida: ${message.outputAccounting!['returnedUnits']}/${message.outputAccounting!['limit']} ${message.outputAccounting!['mode'] == 'verified_tokenizer' ? 'tokens verificados' : 'unidades UTF-16 (no tokens)'}',
+              style: TextStyle(fontSize: 11, color: isUser ? Colors.white70 : AppColors.slate500)),
+            if (message.contextManifest != null) AttachmentContextPanel(message.contextManifest!),
             const SizedBox(height: 4),
             if (isUser)
               Text(

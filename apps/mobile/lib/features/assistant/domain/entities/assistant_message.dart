@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
+import 'assistant_attachment.dart';
 
 enum AssistantMessageRole { user, assistant, system }
 
@@ -13,6 +14,12 @@ class AssistantMessage extends Equatable {
     required this.role,
     required this.content,
     required this.createdAt,
+    this.attachments = const [],
+    this.contextManifest,
+    this.partialOutput,
+    this.partialOutputReason,
+    this.partialOutputNotice,
+    this.outputAccounting,
   });
 
   final String id;
@@ -20,9 +27,14 @@ class AssistantMessage extends Equatable {
   final AssistantMessageRole role;
   final String content;
   final DateTime createdAt;
+  final List<AssistantAttachment> attachments;
+  final Map<String, dynamic>? contextManifest;
+  final bool? partialOutput;
+  final String? partialOutputReason, partialOutputNotice;
+  final Map<String, dynamic>? outputAccounting;
 
   @override
-  List<Object?> get props => [id, conversationId, role, content, createdAt];
+  List<Object?> get props => [id, conversationId, role, content, createdAt, attachments, contextManifest, partialOutput, partialOutputReason, partialOutputNotice, outputAccounting];
 }
 
 class SendAssistantMessageResult extends Equatable {
@@ -30,11 +42,16 @@ class SendAssistantMessageResult extends Equatable {
     required this.conversationId,
     required this.userMessage,
     required this.assistantMessage,
+    this.contextManifest, this.partialOutput, this.partialOutputReason,
+    this.partialOutputNotice, this.outputAccounting,
   });
 
   final String conversationId;
   final AssistantMessage userMessage;
   final AssistantMessage assistantMessage;
+  final Map<String, dynamic>? contextManifest, outputAccounting;
+  final bool? partialOutput;
+  final String? partialOutputReason, partialOutputNotice;
 
   @override
   List<Object?> get props => [conversationId, userMessage, assistantMessage];
@@ -53,6 +70,8 @@ class AssistantMessageTask extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
+    this.contextManifest, this.partialOutput, this.partialOutputReason,
+    this.partialOutputNotice, this.outputAccounting,
   });
 
   final String id;
@@ -64,6 +83,9 @@ class AssistantMessageTask extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
+  final Map<String, dynamic>? contextManifest, outputAccounting;
+  final bool? partialOutput;
+  final String? partialOutputReason, partialOutputNotice;
 
   @override
   List<Object?> get props => [

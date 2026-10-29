@@ -11,10 +11,12 @@ class CreateAssistantMessageTaskUseCase {
   Future<Either<Failure, AssistantMessageTask>> call({
     required String message,
     String? conversationId,
+    String? uploadBatchId, List<String>? attachmentIds, String? clientMessageId,
   }) {
     return _repository.createMessageTask(
       message: message,
       conversationId: conversationId,
+      uploadBatchId: uploadBatchId, attachmentIds: attachmentIds, clientMessageId: clientMessageId,
     );
   }
 }

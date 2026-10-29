@@ -6,6 +6,8 @@ import 'package:kyrae_mobile/core/lifecycle/app_lifecycle_provider.dart';
 import 'package:kyrae_mobile/features/assistant/domain/entities/assistant_message.dart';
 import 'package:kyrae_mobile/features/assistant/presentation/providers/assistant_provider.dart';
 import 'package:kyrae_mobile/features/assistant/presentation/widgets/assistant_message_bubble.dart';
+import '../providers/attachment_provider.dart';
+import '../widgets/attachment_widgets.dart';
 
 class AssistantPage extends ConsumerStatefulWidget {
   const AssistantPage({super.key});
@@ -24,6 +26,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     Future.microtask(() {
       ref.read(localNotificationServiceProvider).initialize();
       ref.read(assistantControllerProvider.notifier).loadSessions();
+      ref.read(attachmentControllerProvider.notifier).loadCapabilities();
     });
   }
 
@@ -38,8 +41,9 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    _controller.clear();
     await ref.read(assistantControllerProvider.notifier).send(text);
+    if (!mounted) return;
+    if (ref.read(assistantControllerProvider).errorMessage == null) _controller.clear();
     _scrollToBottom();
   }
 
@@ -102,6 +106,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       if (messageCountChanged || sendingChanged || historyChanged) {
         _scrollToBottom();
       }
+      if (historyChanged && previous?.conversationId != null) _controller.clear();
     });
 
     ref.watch(appLifecycleProvider);
@@ -159,12 +164,14 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                 onResume: _resumeSpokenResponse,
                 onStop: _stopSpokenResponse,
               ),
+            AttachmentComposerPanel(disabled: state.isSending || state.isRecording || state.isTranscribing || state.isLoadingHistory),
             _MessageComposer(
               controller: _controller,
               isSending: state.isSending,
               isRecording: state.isRecording,
               isTranscribing: state.isTranscribing,
               canUseVoice: canUseVoice,
+              filesReady: ref.watch(attachmentControllerProvider).files.isEmpty || ref.watch(attachmentControllerProvider).ready || ref.watch(attachmentControllerProvider).locked,
               onSend: _send,
               onVoice: _toggleVoiceRecording,
             ),
@@ -717,6 +724,7 @@ class _MessageComposer extends StatelessWidget {
     required this.isRecording,
     required this.isTranscribing,
     required this.canUseVoice,
+    required this.filesReady,
     required this.onSend,
     required this.onVoice,
   });
@@ -726,6 +734,7 @@ class _MessageComposer extends StatelessWidget {
   final bool isRecording;
   final bool isTranscribing;
   final bool canUseVoice;
+  final bool filesReady;
   final VoidCallback onSend;
   final VoidCallback onVoice;
 
@@ -745,6 +754,7 @@ class _MessageComposer extends StatelessWidget {
               controller: controller,
               minLines: 1,
               maxLines: 4,
+              maxLength: 4000,
               textInputAction: TextInputAction.send,
               enabled: !isSending && !isRecording && !isTranscribing,
               decoration: const InputDecoration(
@@ -781,7 +791,7 @@ class _MessageComposer extends StatelessWidget {
             height: 52,
             width: 52,
             child: FilledButton(
-              onPressed: isSending || isRecording || isTranscribing ? null : onSend,
+              onPressed: isSending || isRecording || isTranscribing || !filesReady ? null : onSend,
               style: FilledButton.styleFrom(
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
