@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { ATTACHMENT_ENTITIES } from '../assistant-attachments/attachment.entities';
 import { DataSource } from 'typeorm';
 import { Permission } from '../permissions/permission.entity';
 import { Role } from '../roles/role.entity';
@@ -28,6 +29,7 @@ export default new DataSource({
   password: process.env.DB_PASS ?? 'postgres',
   database: process.env.DB_NAME ?? 'kyrae',
   entities: [
+    ...ATTACHMENT_ENTITIES,
     User,
     Role,
     Permission,
@@ -48,6 +50,6 @@ export default new DataSource({
     AgentExecution,
     AgentExecutionEvent,
   ],
-  migrations: ['src/database/migrations/*.ts'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
 });

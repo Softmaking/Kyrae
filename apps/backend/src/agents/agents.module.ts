@@ -10,6 +10,7 @@ import { AgentProviderFactory, AGENT_PROVIDERS } from './agent-provider.factory'
 import { HermesAgentProvider } from './hermes-agent.provider';
 import { OpenClawAgentProvider } from './openclaw-agent.provider';
 import { AgentsController } from './agents.controller';
+import { AttachmentModelProfiles } from './attachment-model-profile.service';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AgentsController } from './agents.controller';
     OpenClawModule,
   ],
   providers: [
+    AttachmentModelProfiles,
     HermesAgentProvider,
     OpenClawAgentProvider,
     {
@@ -33,6 +35,7 @@ import { AgentsController } from './agents.controller';
   ],
   controllers: [AgentsController],
   exports: [
+    AttachmentModelProfiles,
     AgentOrchestratorService,
     AgentProviderFactory,
     HermesAgentProvider,

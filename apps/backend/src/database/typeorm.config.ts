@@ -1,4 +1,5 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ATTACHMENT_ENTITIES } from '../assistant-attachments/attachment.entities';
 import { TypeOrmModuleAsyncOptions } from '@nestjs/typeorm';
 import { AuditEvent } from '../audit/audit-event.entity';
 import { Branch } from '../branches/branch.entity';
@@ -31,6 +32,7 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
     password: config.get<string>('DB_PASS', 'postgres'),
     database: config.get<string>('DB_NAME', 'kyrae'),
     entities: [
+      ...ATTACHMENT_ENTITIES,
       User,
       Role,
       Permission,

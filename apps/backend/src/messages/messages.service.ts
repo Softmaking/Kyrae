@@ -14,9 +14,20 @@ import type {
   OpenClawResponse,
   SendAssistantMessageResponse,
 } from '@kyrae/shared-contracts';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  GatewayTimeoutException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { AttachmentSubmissions } from './attachment-submissions.service';
+import { AssistantAttachmentsService } from '../assistant-attachments/assistant-attachments.service';
+import {
+  AssistantAttachment,
+  AssistantMessageContext,
+} from '../assistant-attachments/attachment.entities';
 import { AuditService } from '../audit/audit.service';
 import { AgentOrchestratorService } from '../agents/agent-orchestrator.service';
 import { AssistantMessageTask } from './assistant-message-task.entity';
@@ -42,7 +53,10 @@ export class MessagesService {
     private readonly openClawRequestRepository: Repository<OpenClawRequestTrace>,
     private readonly agentOrchestrator: AgentOrchestratorService,
     private readonly auditService: AuditService,
-    private readonly messagesGateway: MessagesGateway
+    private readonly messagesGateway: MessagesGateway,
+    private readonly submissions: AttachmentSubmissions,
+    private readonly attachments: AssistantAttachmentsService,
+    private readonly db: DataSource
   ) {}
 
   async findSessions(
@@ -97,7 +111,10 @@ export class MessagesService {
 
     return {
       session: this.toSessionDto(conversation, messages.length, messages.at(-1)?.createdAt ?? null),
-      messages: messages.map((message) => this.toDto(message, conversation.channel)),
+      messages: await this.enrichMessages(
+        messages.map((message) => this.toDto(message, conversation.channel)),
+        userId
+      ),
     };
   }
 
@@ -107,6 +124,11 @@ export class MessagesService {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<AssistantMessageTaskDto> {
+    if (await this.submissions.applies(params.dto, params.userId)) {
+      const task = await this.submissions.commit(params.userId, params.dto);
+      this.emitSessionUpdated(task.conversationId, task.channel);
+      return this.findMessageTask(task.id, params.userId);
+    }
     const channel = params.dto.channel ?? 'web';
     const content = params.dto.message.trim();
     const conversation = await this.getOrCreateConversation({
@@ -183,7 +205,21 @@ export class MessagesService {
       ? await this.messageRepository.findOne({ where: { id: task.assistantMessageId } })
       : null;
 
-    return this.toTaskDto(task, userMessage, assistantMessage);
+    const result = this.toTaskDto(task, userMessage, assistantMessage);
+    const enriched = await this.enrichMessages(
+      [result.userMessage, ...(result.assistantMessage ? [result.assistantMessage] : [])],
+      userId
+    );
+    result.userMessage = enriched[0];
+    result.assistantMessage = enriched[1] ?? null;
+    const context = await this.db
+      .getRepository(AssistantMessageContext)
+      .findOneBy({ task_id: task.id });
+    if (context) {
+      result.contextManifest = context.manifest;
+      Object.assign(result, context.output_metadata ?? {});
+    }
+    return result;
   }
 
   async sendMessage(params: {
@@ -192,6 +228,42 @@ export class MessagesService {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<SendAssistantMessageResponse> {
+    if (await this.submissions.applies(params.dto, params.userId)) {
+      const task = await this.submissions.commit(params.userId, params.dto);
+      const deadline = Date.now() + 25_000;
+      do {
+        const result = await this.findMessageTask(task.id, params.userId);
+        if (result.status === 'completed' && result.assistantMessage)
+          return {
+            sessionId: task.conversationId,
+            conversationId: task.conversationId,
+            userMessage: result.userMessage,
+            assistantMessage: result.assistantMessage,
+            openClawRequestId: task.id,
+            contextManifest: result.contextManifest,
+            partialOutput: result.partialOutput,
+            partialOutputReason: result.partialOutputReason,
+            partialOutputNotice: result.partialOutputNotice,
+            outputAccounting: result.outputAccounting,
+          };
+        if (result.status === 'failed')
+          throw new GatewayTimeoutException({
+            code: 'ATTACHMENTS_PROVIDER_FAILED',
+            message: result.errorMessage,
+            taskId: task.id,
+            sessionId: task.conversationId,
+            retryable: false,
+          });
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      } while (Date.now() < deadline);
+      throw new GatewayTimeoutException({
+        code: 'ATTACHMENT_NOT_READY',
+        message: 'Consulta la tarea para conocer el resultado. Los originales se conservaron.',
+        taskId: task.id,
+        sessionId: task.conversationId,
+        retryable: false,
+      });
+    }
     const channel = params.dto.channel ?? 'web';
     const content = params.dto.message.trim();
     const conversation = await this.getOrCreateConversation({
@@ -736,7 +808,54 @@ export class MessagesService {
       metadata: message.metadata ?? null,
       createdAt: message.createdAt.toISOString(),
       updatedAt: message.updatedAt?.toISOString() ?? null,
+      attachments: [],
     };
+  }
+
+  private async enrichMessages(
+    messages: AssistantMessageDto[],
+    owner: string
+  ): Promise<AssistantMessageDto[]> {
+    if (!messages.length) return messages;
+    const files = await this.db.getRepository(AssistantAttachment).find({
+      where: {
+        message_id: In(messages.map((m) => m.id)),
+        owner_id: owner,
+        lifecycle: 'attached',
+      },
+      order: { ordinal: 'ASC' },
+    });
+    const contexts = await this.db
+      .getRepository(AssistantMessageContext)
+      .createQueryBuilder('c')
+      .leftJoin(AssistantMessageTask, 't', 't.id=c.task_id')
+      .where('c.message_id IN (:...ids) OR t.assistant_message_id IN (:...ids)', {
+        ids: messages.map((m) => m.id),
+      })
+      .getMany();
+    if (files.length || contexts.length) await this.attachments.access.assertCurrent(owner);
+    const descriptors = await this.attachments.map(files);
+    const taskIds = contexts.map((c) => c.task_id);
+    const tasks = taskIds.length
+      ? await this.taskRepository.findBy({ id: In(taskIds), userId: owner })
+      : [];
+    return messages.map((m) => {
+      const context = contexts.find(
+        (c) =>
+          c.message_id === m.id ||
+          tasks.find((t) => t.id === c.task_id)?.assistantMessageId === m.id
+      );
+      return {
+        ...m,
+        attachments: descriptors.filter((f) => f.messageId === m.id),
+        ...(context
+          ? {
+              contextManifest: context.manifest,
+              ...(m.role === 'assistant' ? (context.output_metadata ?? {}) : {}),
+            }
+          : {}),
+      };
+    });
   }
 
   private toSessionDto(

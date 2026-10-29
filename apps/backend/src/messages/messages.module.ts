@@ -11,9 +11,14 @@ import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { OpenClawRequestTrace } from './openclaw-request.entity';
 import { SessionsController } from './sessions.controller';
+import { AssistantAttachmentsModule } from '../assistant-attachments/assistant-attachments.module';
+import { AssistantContextBuilder } from './assistant-context-builder.service';
+import { AttachmentSubmissions } from './attachment-submissions.service';
+import { AttachmentDispatcher } from './attachment-dispatcher.service';
 
 @Module({
   imports: [
+    AssistantAttachmentsModule,
     TypeOrmModule.forFeature([Conversation, Message, AssistantMessageTask, OpenClawRequestTrace]),
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? 'dev_jwt_secret_change_me',
@@ -23,7 +28,13 @@ import { SessionsController } from './sessions.controller';
     AuditModule,
   ],
   controllers: [MessagesController, SessionsController],
-  providers: [MessagesService, MessagesGateway],
+  providers: [
+    MessagesService,
+    MessagesGateway,
+    AssistantContextBuilder,
+    AttachmentSubmissions,
+    AttachmentDispatcher,
+  ],
   exports: [MessagesService, MessagesGateway],
 })
 export class MessagesModule {}

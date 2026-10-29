@@ -13,6 +13,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AgentProvider } from './agent-provider';
 import {
+  hasTypedParts,
+  invokeAttachmentHermes,
+  serializeAttachmentRequest,
+} from './attachment-hermes.protocol';
+import { attachmentError } from '../assistant-attachments/attachment.errors';
+import {
   AgentProviderError,
   AgentProviderUnavailableError,
   AgentTimeoutError,
@@ -39,6 +45,18 @@ export class HermesAgentProvider implements AgentProvider {
   }
 
   async sendMessage(request: AgentChatRequest): Promise<AgentChatResponse> {
+    if (hasTypedParts(request.messages)) {
+      const base = this.config.get<string>('HERMES_BASE_URL');
+      if (!base) throw attachmentError('ATTACHMENTS_CAPABILITY_UNAVAILABLE', 503);
+      return invokeAttachmentHermes(
+        base,
+        this.config.get<string>('HERMES_API_KEY'),
+        serializeAttachmentRequest(
+          request.model ?? this.config.get<string>('HERMES_DEFAULT_MODEL', 'hermes-agent'),
+          request.messages
+        )
+      );
+    }
     let content = '';
     let providerRequestId: string | undefined;
 
@@ -58,6 +76,7 @@ export class HermesAgentProvider implements AgentProvider {
   }
 
   async *streamMessage(request: AgentChatRequest): AsyncIterable<AgentStreamEvent> {
+    if (hasTypedParts(request.messages)) throw attachmentError('ATTACHMENTS_UNSUPPORTED_PROVIDER');
     const response = await this.request('/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -110,6 +129,8 @@ export class HermesAgentProvider implements AgentProvider {
   }
 
   async createRun(request: AgentRunRequest): Promise<AgentRun> {
+    if (hasTypedParts(request.conversationHistory ?? []))
+      throw attachmentError('ATTACHMENTS_UNSUPPORTED_PROVIDER');
     const response = await this.request('/v1/runs', {
       method: 'POST',
       headers: {

@@ -4,11 +4,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
+import { json } from 'express';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(['/messages', '/messages/tasks'], json({ limit: '64kb' }));
+  app.use(json({ limit: '100kb' }));
   app.enableCors({
     origin: [/^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/],
     credentials: true,
@@ -20,6 +23,7 @@ async function bootstrap() {
       'X-Branch-Id',
       'X-Correlation-Id',
     ],
+    exposedHeaders: ['Content-Disposition', 'Content-Length', 'X-Correlation-Id'],
   });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -48,6 +52,8 @@ async function bootstrap() {
   app.use('/scalar', apiReference({ spec: { content: document } }));
 
   await app.listen(process.env.PORT ?? 3000);
+  // Attachment route enforces its own total/idle limits, including chunked bodies.
+  app.getHttpServer().requestTimeout = 310_000;
 }
 
 void bootstrap();

@@ -190,6 +190,48 @@ describe('AuditService', () => {
     });
   });
 
+  describe('AUDIT user display names', () => {
+    it('should select only real user columns and compose display names', async () => {
+      const event = makeEvent({ id: 'evt-1', actorUserId: 'actor-1', targetUserId: 'target-1' });
+
+      const qb = mockQueryBuilder();
+      qb.getMany.mockResolvedValue([event]);
+      auditRepository.createQueryBuilder.mockReturnValue(qb);
+      userRepository.find.mockResolvedValue([
+        {
+          id: 'actor-1',
+          email: 'actor@kyrae.cl',
+          firstName: 'Maria',
+          firstSurname: 'Fernandez',
+          secondSurname: null,
+        },
+        {
+          id: 'target-1',
+          email: 'target@kyrae.cl',
+          firstName: 'Juan',
+          firstSurname: 'Perez',
+          secondSurname: 'Soto',
+        },
+      ]);
+
+      const result = await service.findAll({ limit: 20 });
+
+      const findArgs = userRepository.find.mock.calls[0][0];
+      expect(findArgs.select).toEqual({
+        id: true,
+        email: true,
+        firstName: true,
+        firstSurname: true,
+        secondSurname: true,
+      });
+      expect(findArgs.select).not.toHaveProperty('fullName');
+
+      expect(result.data[0]?.actorUserEmail).toBe('actor@kyrae.cl');
+      expect(result.data[0]?.actorUserName).toBe('Maria Fernandez');
+      expect(result.data[0]?.targetUserName).toBe('Juan Perez Soto');
+    });
+  });
+
   describe('log', () => {
     it('should create and return an audit event', async () => {
       const saved = makeEvent({

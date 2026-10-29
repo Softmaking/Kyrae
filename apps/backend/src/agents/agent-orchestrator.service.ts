@@ -24,6 +24,9 @@ import { Agent } from './agent.entity';
 import { AgentExecutionEvent } from './agent-execution-event.entity';
 import { AgentExecution } from './agent-execution.entity';
 import { AgentProviderFactory } from './agent-provider.factory';
+import { hasTypedParts } from './attachment-hermes.protocol';
+import { AttachmentModelProfiles } from './attachment-model-profile.service';
+import { attachmentError } from '../assistant-attachments/attachment.errors';
 
 @Injectable()
 export class AgentOrchestratorService {
@@ -35,7 +38,8 @@ export class AgentOrchestratorService {
     private readonly eventRepository: Repository<AgentExecutionEvent>,
     private readonly providerFactory: AgentProviderFactory,
     private readonly config: ConfigService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly attachmentProfiles: AttachmentModelProfiles
   ) {}
 
   async resolveAgent(agentId?: string): Promise<Agent> {
@@ -66,6 +70,8 @@ export class AgentOrchestratorService {
     onEvent?: (event: AgentStreamEvent, execution: AgentExecution) => Promise<void> | void;
   }): Promise<{ response: AgentChatResponse; execution: AgentExecutionDto }> {
     const agent = await this.resolveAgent(params.agentId);
+    const typed = hasTypedParts(params.messages);
+    if (typed) this.attachmentProfiles.requireAvailable(agent);
     const provider = this.providerFactory.get(agent.provider);
     const execution = await this.executionRepository.save(
       this.executionRepository.create({
@@ -93,7 +99,7 @@ export class AgentOrchestratorService {
         metadata: params.metadata,
       };
       let response: AgentChatResponse;
-      if (provider.streamMessage) {
+      if (provider.streamMessage && !typed) {
         let content = '';
         let providerRequestId: string | undefined;
         for await (const event of provider.streamMessage(request)) {
@@ -152,6 +158,8 @@ export class AgentOrchestratorService {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<AgentExecutionDto> {
+    if (hasTypedParts(params.conversationHistory ?? []))
+      throw attachmentError('ATTACHMENTS_UNSUPPORTED_PROVIDER');
     const agent = await this.resolveAgent(params.agentId);
     const provider = this.providerFactory.get(agent.provider);
     if (!provider.createRun)

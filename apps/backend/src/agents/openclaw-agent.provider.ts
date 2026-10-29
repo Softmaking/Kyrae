@@ -6,6 +6,8 @@ import type {
 import { Injectable } from '@nestjs/common';
 import { OpenClawService } from '../openclaw/openclaw.service';
 import { AgentProvider } from './agent-provider';
+import { hasTypedParts } from './attachment-hermes.protocol';
+import { attachmentError } from '../assistant-attachments/attachment.errors';
 
 @Injectable()
 export class OpenClawAgentProvider implements AgentProvider {
@@ -20,10 +22,13 @@ export class OpenClawAgentProvider implements AgentProvider {
   }
 
   async sendMessage(request: AgentChatRequest): Promise<AgentChatResponse> {
+    if (hasTypedParts(request.messages)) throw attachmentError('ATTACHMENTS_UNSUPPORTED_PROVIDER');
+    const content = request.messages.at(-1)?.content ?? '';
+    if (typeof content !== 'string') throw attachmentError('ATTACHMENTS_UNSUPPORTED_PROVIDER');
     const response = await this.openClawService.sendMessage({
       sessionId: request.conversationId,
       channel: request.channel ?? 'web',
-      message: request.messages.at(-1)?.content ?? '',
+      message: content,
       metadata: { userId: request.userId, conversationId: request.conversationId },
     });
     return {

@@ -14,6 +14,7 @@ describe('AgentOrchestratorService', () => {
       eventRepository as never,
       {} as never,
       {} as never,
+      {} as never,
       {} as never
     );
     const persistEvent = (

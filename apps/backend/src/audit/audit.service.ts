@@ -192,10 +192,24 @@ export class AuditService {
 
     const users = await this.userRepository.find({
       where: { id: In([...ids]) },
-      select: { id: true, email: true, fullName: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        firstSurname: true,
+        secondSurname: true,
+      },
     });
 
-    return new Map(users.map((u) => [u.id, { email: u.email, fullName: u.fullName }]));
+    return new Map(
+      users.map((u) => [
+        u.id,
+        {
+          email: u.email,
+          fullName: [u.firstName, u.firstSurname, u.secondSurname].filter(Boolean).join(' '),
+        },
+      ])
+    );
   }
 
   private toDto(
