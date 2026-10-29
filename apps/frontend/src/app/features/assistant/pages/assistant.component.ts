@@ -4,6 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../auth/services/auth.service';
 import { AssistantRealtimeService } from '../services/assistant-realtime.service';
 import { AssistantService } from '../services/assistant.service';
+import { AssistantAttachmentsService } from '../services/assistant-attachments.service';
+import { AttachmentPickerComponent } from '../components/attachment-picker/attachment-picker.component';
+import { AttachmentListComponent } from '../components/attachment-list/attachment-list.component';
+import { AttachmentCoverageComponent } from '../components/attachment-coverage/attachment-coverage.component';
 import type {
   AssistantMessageDto,
   AssistantRealtimeEvent,
@@ -25,7 +29,14 @@ type VoiceOutputStatus = 'idle' | 'synthesizing' | 'playing' | 'paused' | 'faile
 @Component({
   selector: 'app-assistant',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    AttachmentPickerComponent,
+    AttachmentListComponent,
+    AttachmentCoverageComponent,
+  ],
+  providers: [AssistantAttachmentsService],
   templateUrl: './assistant.component.html',
   styleUrl: './assistant.component.css',
 })
@@ -33,6 +44,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
   private readonly assistantService = inject(AssistantService);
   private readonly authService = inject(AuthService);
   private readonly realtimeService = inject(AssistantRealtimeService);
+  readonly uploads = inject(AssistantAttachmentsService);
 
   @ViewChild('messagesViewport') private messagesViewport?: ElementRef<HTMLElement>;
 
@@ -62,10 +74,24 @@ export class AssistantComponent implements OnInit, OnDestroy {
   private currentVoiceAudio: HTMLAudioElement | null = null;
   private currentVoiceAudioUrl: string | null = null;
   private readonly spokenMessageIds = new Set<string>();
+  private viewGeneration = 0;
+  private historyRefresh?: ReturnType<typeof setInterval>;
 
   draft = '';
 
   ngOnInit(): void {
+    void this.uploads.loadCapabilities();
+    this.historyRefresh = setInterval(() => {
+      if (
+        this.messages().some((message) =>
+          message.attachments?.some(
+            (file) => file.processingStatus === 'pending' || file.processingStatus === 'processing'
+          )
+        )
+      )
+        void this.reconcileHistory();
+    }, 3000);
+    this.realtimeService.onReconnect(this.reconcileHistory);
     this.realtimeService.connect();
     this.realtimeService.on('assistant.message.received', this.handleRealtimeEvent);
     this.realtimeService.on('assistant.agent.processing', this.handleRealtimeEvent);
@@ -81,6 +107,10 @@ export class AssistantComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.realtimeService.offReconnect(this.reconcileHistory);
+    this.uploads.reset();
+    clearInterval(this.historyRefresh);
+    this.viewGeneration++;
     this.realtimeService.off('assistant.message.received', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.agent.processing', this.handleRealtimeEvent);
     this.realtimeService.off('assistant.agent.completed', this.handleRealtimeEvent);
@@ -183,12 +213,20 @@ export class AssistantComponent implements OnInit, OnDestroy {
   async openSession(session: AssistantSessionDto): Promise<void> {
     if (this.historyLoading() || this.sessionId() === session.id) return;
 
+    this.uploads.reset();
+    this.viewGeneration++;
+    this.clearTaskPolling();
+    this.loading.set(false);
+    this.streamingContent.set('');
+    this.stopSpokenResponse();
+    this.draft = '';
     this.historyLoading.set(true);
     this.error.set(null);
 
     try {
       const response = await this.assistantService.findSessionMessages(session.id);
       this.sessionId.set(response.session.id);
+      void this.uploads.loadCapabilities(response.session.id);
       this.messages.set(response.messages);
       this.realtimeService.joinSession(response.session.id);
       this.scrollMessagesToBottom();
@@ -200,6 +238,11 @@ export class AssistantComponent implements OnInit, OnDestroy {
   }
 
   newSession(): void {
+    this.viewGeneration++;
+    this.uploads.reset();
+    void this.uploads.loadCapabilities();
+    this.clearTaskPolling();
+    this.loading.set(false);
     this.stopSpokenResponse();
     this.sessionId.set(null);
     this.messages.set([]);
@@ -211,18 +254,28 @@ export class AssistantComponent implements OnInit, OnDestroy {
 
   async send(): Promise<void> {
     const message = this.draft.trim();
-    if (!message || this.loading()) return;
+    if (
+      !message ||
+      message.length > 4000 ||
+      this.loading() ||
+      this.historyLoading() ||
+      this.voiceStatus() !== 'idle'
+    )
+      return;
+    if (this.uploads.staged().length && !this.uploads.ready()) return;
+    const command = this.uploads.staged().length
+      ? this.uploads.command(message)
+      : { message, sessionId: this.sessionId() ?? undefined, channel: 'web' as const };
+    const generation = this.viewGeneration;
 
     this.loading.set(true);
     this.error.set(null);
     this.draft = '';
 
     try {
-      const response = await this.assistantService.createMessageTask({
-        message,
-        sessionId: this.sessionId() ?? undefined,
-        channel: 'web',
-      });
+      const response = await this.assistantService.createMessageTask(command);
+      if (this.viewGeneration !== generation) return;
+      this.uploads.committed();
 
       this.sessionId.set(response.sessionId);
       this.realtimeService.joinSession(response.sessionId);
@@ -231,8 +284,11 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.startTaskPolling(response.id);
       void this.loadSessions();
     } catch {
-      this.error.set('No se pudo enviar el mensaje al asistente. Intenta nuevamente.');
-      this.draft = message;
+      if (this.viewGeneration !== generation) return;
+      this.error.set(
+        'No se confirmó el envío. Reintenta para recuperar el mismo resultado; no se reiniciará automáticamente el análisis.'
+      );
+      this.draft = command.message;
       this.loading.set(false);
     }
   }
@@ -252,6 +308,12 @@ export class AssistantComponent implements OnInit, OnDestroy {
   }
 
   async toggleVoiceRecording(): Promise<void> {
+    if (this.uploads.staged().length) {
+      this.error.set(
+        'No se pueden combinar audio y archivos en un mensaje. Conservamos tus archivos; envíalos o elimínalos antes de grabar.'
+      );
+      return;
+    }
     if (this.voiceStatus() === 'recording') {
       this.mediaRecorder?.stop();
       return;
@@ -378,7 +440,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
     }
 
     if (event.status === 'received' && event.role === 'user' && event.content) {
-      this.addMessage(this.eventToMessage(event));
+      void this.reconcileHistory();
       this.scrollMessagesToBottom();
       return;
     }
@@ -399,8 +461,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
     }
 
     if (event.status === 'completed' && event.role === 'assistant' && event.content) {
-      const message = this.eventToMessage(event);
-      const added = this.addMessage(message);
+      void this.reconcileHistory();
       this.completeActiveTask(event.taskId);
       this.streamingContent.set('');
       this.executionId.set(null);
@@ -408,12 +469,11 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.error.set(null);
       this.scrollMessagesToBottom();
       void this.loadSessions();
-      if (added) void this.speakAssistantMessage(message);
       return;
     }
 
     if (event.status === 'automation_received' && event.role === 'assistant' && event.content) {
-      this.addMessage(this.eventToMessage(event));
+      void this.reconcileHistory();
       this.loading.set(false);
       this.error.set(null);
       this.scrollMessagesToBottom();
@@ -422,11 +482,13 @@ export class AssistantComponent implements OnInit, OnDestroy {
     }
 
     if (event.status === 'completed' && event.role === null) {
+      void this.reconcileHistory();
       void this.loadSessions();
       return;
     }
 
     if (event.status === 'failed') {
+      void this.reconcileHistory();
       this.completeActiveTask(event.taskId);
       this.streamingContent.set('');
       this.executionId.set(null);
@@ -515,9 +577,19 @@ export class AssistantComponent implements OnInit, OnDestroy {
     try {
       const task = await this.assistantService.getMessageTask(taskId);
       if (this.activeTaskId !== taskId) return;
+      this.addMessage(task.userMessage);
 
       if (task.status === 'completed' && task.assistantMessage) {
-        const added = this.addMessage(task.assistantMessage);
+        const added = this.addMessage({
+          ...task.assistantMessage,
+          contextManifest: task.contextManifest ?? task.assistantMessage.contextManifest,
+          partialOutput: task.partialOutput ?? task.assistantMessage.partialOutput,
+          partialOutputReason:
+            task.partialOutputReason ?? task.assistantMessage.partialOutputReason,
+          partialOutputNotice:
+            task.partialOutputNotice ?? task.assistantMessage.partialOutputNotice,
+          outputAccounting: task.outputAccounting ?? task.assistantMessage.outputAccounting,
+        });
         this.completeActiveTask(taskId);
         this.sessionId.set(task.sessionId);
         this.loading.set(false);
@@ -529,6 +601,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
       }
 
       if (task.status === 'failed') {
+        void this.reconcileHistory();
         this.completeActiveTask(taskId);
         this.loading.set(false);
         this.error.set(task.errorMessage ?? 'Kyrae no pudo procesar la solicitud.');
@@ -570,12 +643,32 @@ export class AssistantComponent implements OnInit, OnDestroy {
   private addMessage(message: AssistantMessageDto): boolean {
     let added = false;
     this.messages.update((current) => {
-      if (current.some((item) => item.id === message.id)) return current;
+      if (current.some((item) => item.id === message.id))
+        return current.map((item) => (item.id === message.id ? { ...item, ...message } : item));
       added = true;
       return [...current, message];
     });
     return added;
   }
+
+  private readonly reconcileHistory = async (): Promise<void> => {
+    const id = this.sessionId();
+    if (!id) return;
+    try {
+      const result = await this.assistantService.findSessionMessages(id);
+      if (id !== this.sessionId()) return;
+      const previous = new Set(this.messages().map((message) => message.id));
+      this.messages.set(result.messages);
+      for (const message of result.messages)
+        if (!previous.has(message.id) && message.status === 'completed')
+          void this.speakAssistantMessage(message);
+    } catch {
+      if (id === this.sessionId())
+        this.error.set(
+          'No se pudo actualizar el historial canónico. Actualiza la conversación para consultar archivos y cobertura.'
+        );
+    }
+  };
 
   private async speakAssistantMessage(message: AssistantMessageDto): Promise<void> {
     if (!this.voiceOutputEnabled() || !this.canUseVoiceOutput()) return;

@@ -151,6 +151,11 @@
                 } @else {
                   <p class="whitespace-pre-line">{{ message.content }}</p>
                 }
+                <app-attachment-list [files]="message.attachments ?? []" />
+                <app-attachment-coverage [manifest]="message.contextManifest" />
+                @if (message.partialOutput) {
+                  <p role="status" class="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-medium text-amber-900">Respuesta parcial: {{ message.partialOutputNotice || 'La respuesta alcanzó el límite de salida y no está completa.' }} ({{ message.partialOutputReason }})</p>
+                }
               </div>
             </div>
           }
@@ -178,6 +183,7 @@
         </div>
 
         <form class="border-t border-slate-200 p-4 sm:p-6" (ngSubmit)="send()">
+          <app-attachment-picker [disabled]="loading() || historyLoading() || voiceStatus() !== 'idle'" />
           @if (error()) {
             <p class="mb-3 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-100">
               {{ error() }}
@@ -197,9 +203,10 @@
               name="assistant-message"
               [(ngModel)]="draft"
               rows="2"
+              maxlength="4000"
               class="min-h-14 flex-1 resize-none rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               placeholder="Escribe una instrucción para el asistente..."
-              [disabled]="loading() || voiceStatus() !== 'idle'"
+              [disabled]="loading() || historyLoading() || uploads.locked() || voiceStatus() !== 'idle'"
             ></textarea>
             @if (canUseVoice()) {
               <button
@@ -220,7 +227,7 @@
             <button
               type="submit"
               class="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-              [disabled]="loading() || voiceStatus() !== 'idle' || !draft.trim()"
+              [disabled]="loading() || historyLoading() || voiceStatus() !== 'idle' || !draft.trim() || draft.trim().length > 4000 || (uploads.staged().length > 0 && !uploads.ready())"
             >
               Enviar
             </button>

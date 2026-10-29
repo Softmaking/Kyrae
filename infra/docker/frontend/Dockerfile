@@ -24,6 +24,19 @@ COPY --from=builder /app/apps/frontend/dist/KyraeFrontend/browser /usr/share/ngi
 RUN printf '%s\n' \
     'server {' \
     '  listen 80;' \
+    '  location ~ ^/api/messages/upload-batches/[^/]+/files$ {' \
+    '    client_max_body_size 21m;' \
+    '    client_body_timeout 60s;' \
+    '    proxy_request_buffering off;' \
+    '    proxy_send_timeout 60s;' \
+    '    proxy_read_timeout 300s;' \
+    '    rewrite ^/api/(.*)$ /$1 break;' \
+    '    proxy_pass http://kyrae-backend:3000;' \
+    '    proxy_set_header Host $host;' \
+    '    proxy_set_header X-Real-IP $remote_addr;' \
+    '    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
+    '    proxy_set_header X-Forwarded-Proto $scheme;' \
+    '  }' \
     '  location /api/ {' \
     '    proxy_pass http://kyrae-backend:3000/;' \
     '    proxy_set_header Host $host;' \

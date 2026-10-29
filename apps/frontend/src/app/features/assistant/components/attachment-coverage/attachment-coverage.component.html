@@ -1,0 +1,23 @@
+@if (coverage(); as value) {
+  <details class="mt-2 rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-700">
+    <summary class="cursor-pointer font-semibold">Cobertura de extracción{{ value.truncated || value.status === 'partial' ? ' parcial' : '' }}</summary>
+    <p>{{ value.summary }}</p>
+    @for (total of value.totals; track $index) { <p>{{ total.sheet || total.unit }}: {{ total.total === null ? 'total desconocido' : total.total }}</p> }
+    @for (range of value.included; track $index) { <p>Extraído: {{ locator(range) }}</p> }
+    @for (omission of value.omitted; track $index) { <p>Omitido: {{ locator(omission.locator) }} · {{ omission.reason }} {{ omission.message }}</p> }
+    @for (notice of value.notices ?? []; track $index) { <p>{{ notice.message }}</p> }
+    <p>Extracción no significa entrega al modelo ni análisis completo.</p>
+  </details>
+}
+@if (manifest(); as value) {
+  <details class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-slate-800" [open]="value.truncated || value.status !== 'delivered'">
+    <summary class="cursor-pointer font-semibold">Contexto de esta respuesta: {{ value.status }}{{ value.truncated ? ' · cobertura parcial' : '' }}</summary>
+    <p>La entrega no demuestra que el modelo haya atendido todo el contenido. Reduce la pregunta si falta una fuente necesaria.</p>
+    @for (file of value.files; track file.attachmentId) {
+      <p>Archivo {{ file.attachmentId }} · {{ file.status }}</p>
+      @for (range of file.included; track $index) { <p>{{ locator(range) }}</p> }
+    }
+    @for (omission of value.omissions; track $index) { <p>Omitido {{ omission.attachmentId || 'historial/política' }}: {{ locator(omission.locator) }} · {{ omission.reason }} {{ omission.message }}</p> }
+    @if (value.omittedHistoryMessageIds.length) { <p>{{ value.omittedHistoryMessageIds.length }} mensajes anteriores omitidos.</p> }
+  </details>
+}

@@ -13,6 +13,7 @@ export default tseslint.config(
       'src/styles.css',
       'e2e/**',
       'playwright.config.ts',
+      'playwright.attachments.config.ts',
       'vitest.config.ts',
       '.angular/**',
       'dist/**',

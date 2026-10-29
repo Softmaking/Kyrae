@@ -1,0 +1,4 @@
+:host { display: block; min-width: 0; }
+.filename { overflow-wrap: anywhere; }
+button:focus-visible { outline: 2px solid var(--color-blue-600); outline-offset: 3px; }
+progress { max-width: 100%; margin-right: .5rem; }

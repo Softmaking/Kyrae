@@ -1,0 +1,31 @@
+<div class="mb-3 space-y-2 text-xs text-slate-600">
+  <input #picker type="file" multiple class="sr-only" tabindex="-1" aria-label="Seleccionar archivos" (change)="select($event)" [disabled]="disabled() || uploads.locked()" />
+  <button type="button" class="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50" [disabled]="disabled() || uploads.locked()" (click)="picker.click()">Adjuntar archivos</button>
+  <p>Hasta 5 archivos · 20 MiB por archivo. PDF, DOCX, hojas de cálculo, texto, configuración, logs, código e imágenes (incluye HEIC/HEIF). El original no se convierte al subir.</p>
+  @if (uploads.capabilities(); as capability) {
+    @if (!capability.available) {
+      <p class="rounded-xl bg-amber-50 p-3 text-amber-900">Análisis en vivo no disponible: {{ capability.unavailableReasons.join(', ') }}. Esto no confirma disponibilidad del modelo. Puedes preparar cargas, consultar procesamiento e historial y descargar originales; el backend valida cada operación.</p>
+    }
+  } @else {
+    <p>Disponibilidad del análisis sin confirmar; seleccionar archivos no implica que puedan analizarse en vivo.</p>
+  }
+  @if (uploads.locked()) { <p>Envío sin confirmar: reintenta Enviar para recuperar el mismo resultado, sin una nueva ejecución. Conservamos la instrucción y los identificadores originales.</p> }
+  <p role="status" aria-live="polite" class="break-words text-amber-900">{{ uploads.notice() }}</p>
+  <ul class="space-y-2" aria-label="Archivos preparados">
+    @for (item of uploads.staged(); track item.clientFileId) {
+      <li class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="filename font-semibold text-slate-900">{{ item.file.name }}</p>
+        <p>{{ item.file.size }} bytes · {{ item.state === 'ready' ? 'Original cargado; aún no adjunto al mensaje' : item.state === 'uploading' ? 'Subiendo original' : item.state === 'queued' ? 'En espera' : item.state === 'deleting' ? 'Eliminando' : 'Carga no confirmada' }}</p>
+        @if (item.state === 'uploading') {
+          <progress max="100" [attr.value]="item.progress" aria-label="Progreso de carga"></progress>
+          <span>{{ item.progress === null ? 'Transferencia en curso; porcentaje no disponible' : item.progress + '% transferido; esperando confirmación' }}</span>
+        }
+        @if (item.error) { <p role="status" class="text-red-700">{{ item.error }}</p> }
+        <div class="mt-2 flex flex-wrap gap-3">
+          @if (item.state === 'failed') { <button type="button" class="font-semibold text-blue-700" [disabled]="uploads.locked()" (click)="uploads.retry(item.clientFileId)">Reintentar carga</button> }
+          <button type="button" class="font-semibold text-slate-700" [attr.aria-label]="'Eliminar ' + item.file.name" [disabled]="uploads.locked() || item.state === 'deleting'" (click)="uploads.remove(item.clientFileId)">Eliminar</button>
+        </div>
+      </li>
+    }
+  </ul>
+</div>

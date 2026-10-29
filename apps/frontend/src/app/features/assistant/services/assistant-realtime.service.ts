@@ -11,6 +11,13 @@ export class AssistantRealtimeService {
   private readonly reconnectAttempts = 3;
   private socket: Socket | null = null;
   private activeSessionId: string | null = null;
+  private readonly reconnectHandlers = new Set<() => void>();
+  onReconnect(handler: () => void): void {
+    this.reconnectHandlers.add(handler);
+  }
+  offReconnect(handler: () => void): void {
+    this.reconnectHandlers.delete(handler);
+  }
   private readonly handlers = new Map<
     AssistantRealtimeEventName,
     Map<(event: AssistantRealtimeEvent) => void, (event: AssistantRealtimeEvent) => void>
@@ -38,6 +45,7 @@ export class AssistantRealtimeService {
 
     this.socket.on('connect', () => {
       if (this.activeSessionId) this.joinSession(this.activeSessionId);
+      this.zone.run(() => this.reconnectHandlers.forEach((handler) => handler()));
     });
 
     this.socket.io.on('reconnect_attempt', () => {
