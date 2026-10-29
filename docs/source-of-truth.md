@@ -81,6 +81,7 @@ Current official beta scope:
 - home (dashboard)
 - profile
 - assistant text chat
+- assistant chat attachments
 - assistant voice input
 - assistant voice output
 
@@ -89,7 +90,7 @@ Documented target capabilities:
 - OpenClaw principal assistant agent
 - voice interaction
 
-OpenClaw currently has a backend text-message adapter. Web and mobile voice input are implemented through the backend voice STT adapter. Web and mobile clients must call Kyrae backend only and must not call the STT Gateway directly. Web and mobile voice output are implemented through the backend voice TTS adapter.
+OpenClaw currently has a backend text-message adapter. Web and mobile voice input are implemented through the backend voice STT adapter. Web and mobile clients must call Kyrae backend only and must not call the STT Gateway directly. Web and mobile voice output are implemented through the backend voice TTS adapter. Web and mobile chat attachments are implemented through the backend `assistant-attachments` module and the internal `apps/attachment-worker` extraction worker; clients call Kyrae backend only and never reach the worker or private attachment storage directly.
 
 ## API Endpoints
 
@@ -119,6 +120,10 @@ Automation schedule shapes are defined in `packages/shared-contracts/src/automat
 
 Assistant voice message and voice output shapes are defined in `packages/shared-contracts/src/voice/voice.contracts.ts` and implemented by `POST /voice/messages` and `POST /voice/speak`.
 
+Assistant attachment capability, upload batch and attachment download shapes are defined in `packages/shared-contracts/src/attachments/attachment.contracts.ts` and implemented by `GET /messages/attachment-capabilities`, `POST /messages/upload-batches`, `GET /messages/upload-batches/:id`, `POST /messages/upload-batches/:id/files`, `DELETE /messages/upload-batches/:id`, `DELETE /messages/upload-batches/:id/files/:attachmentId`, `GET /messages/attachments/:id`, `GET /messages/attachments/:id/content`, and `GET /messages/attachments/:id/thumbnail`.
+
+Additive attachment fields on assistant message, task and send commands/responses are defined in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` (`uploadBatchId`, `attachmentIds`, `clientMessageId`, `attachments`, `contextManifest`, output-accounting metadata) and additive typed-content fields on `AgentChatMessage` in `packages/shared-contracts/src/agents/agent.contracts.ts`.
+
 When changing an endpoint:
 
 1. update shared contracts if API shape changes
@@ -145,6 +150,8 @@ Rules:
 - no business logic
 - no database access
 - no secrets
+
+Attachment contracts live in `packages/shared-contracts/src/attachments/attachment.contracts.ts`; additive attachment fields on messages, tasks and send commands/responses live in `packages/shared-contracts/src/openclaw/openclaw.contracts.ts`, and additive typed-content fields on `AgentChatMessage` live in `packages/shared-contracts/src/agents/agent.contracts.ts`.
 
 ## Authentication
 
@@ -218,6 +225,35 @@ Rules:
 - Real OpenClaw runtime behavior remains external to this repository; `apps/openclaw-http-adapter` only wraps the external `openclaw` CLI process.
 - Real mobile push delivery requires future Firebase Cloud Messaging/APNs credentials and device token registration.
 
+## Assistant Attachments
+
+Source of truth:
+
+- `packages/shared-contracts/src/attachments/attachment.contracts.ts`
+- `packages/shared-contracts/src/openclaw/openclaw.contracts.ts` (additive attachment fields)
+- `packages/shared-contracts/src/agents/agent.contracts.ts` (additive typed-content fields)
+- `apps/backend/src/assistant-attachments/` (backend module, controller, entities, storage, protocol)
+- `apps/backend/src/agents/attachment-hermes.protocol.ts`
+- `apps/backend/src/agents/attachment-model-profile.service.ts`
+- `apps/backend/src/messages/attachment-submissions.service.ts`
+- `apps/backend/src/messages/attachment-dispatcher.service.ts`
+- `apps/backend/src/messages/assistant-context-builder.service.ts`
+- `apps/backend/src/database/migrations/1716090000000-add-assistant-attachments.ts`
+- `apps/attachment-worker/`
+- `apps/frontend/src/app/features/assistant/`
+- `apps/mobile/lib/features/assistant/`
+
+Rules:
+
+- Clients must call the Kyrae backend only; `apps/attachment-worker` is not client-facing and must never be called by web or mobile clients.
+- All attachment endpoints require `ASSISTANT_CHAT_USE` and owner-scoped access.
+- `apps/backend/src/assistant-attachments/PROTOCOL.md` is the backend↔worker protocol authority: flat UUID object keys under `ASSISTANT_ATTACHMENT_STORAGE_ROOT`, worker claims `kind='process'` jobs only, backend claims `dispatch`/`delete` jobs only, 60-second leases with 15-second heartbeats and generation fencing.
+- `apps/attachment-worker` parsers are the extraction authority for derivative text, normalized images and thumbnails per `PROTOCOL.md`; the backend consumes derivatives and does not re-parse originals.
+- `apps/backend/src/agents/attachment-model-profile.service.ts` is the only capability-composition source; it resolves the backend-private `ASSISTANT_MODEL_PROFILES_JSON` profile plus `ASSISTANT_ATTACHMENT_WORKER_VALIDATED` and the storage root into the sanitized `AssistantAttachmentCapabilitiesDto` projection.
+- Capability activation requires explicit profile evidence flags and the worker-validated flag; default `.env.example` values keep `available=false`. Live Hermes attachment analysis is not validated and the feature is not production deployed.
+- `assistant_message_contexts` persists the per-invocation `AssistantContextManifestDto` and output metadata; envelope serialization and output guards are implemented in `attachment-hermes.protocol.ts` (`kyrae-attachment-envelope-v1`).
+- Upload staging expires 24 hours after batch creation; attached originals have no age expiry.
+
 ## Agent Providers and Executions
 
 Source of truth:
@@ -261,6 +297,10 @@ Voice STT adapter environment variables are defined in `apps/backend/.env.exampl
 
 STT gateway environment variables are defined in `apps/stt-gateway/.env.example`.
 
+Assistant attachments backend environment variables are defined in `apps/backend/.env.example`.
+
+Attachment worker environment variables are defined in the `attachment-worker` service in `docker-compose.yml` and documented in `apps/attachment-worker/README-worker-ops.md`.
+
 ## Database Schema
 
 Source of truth:
@@ -297,6 +337,7 @@ Source of truth:
 - `docker-compose.yml`
 - `infra/docker/backend/Dockerfile`
 - `infra/docker/frontend/Dockerfile`
+- `apps/attachment-worker/Dockerfile` (attachment-worker service)
 
 ## Testing
 
@@ -304,11 +345,17 @@ Frontend source of truth:
 
 - `apps/frontend/src/**/*.spec.ts`
 - `apps/frontend/playwright.config.ts`
+- `apps/frontend/playwright.attachments.config.ts` (attachment e2e: `apps/frontend/e2e/assistant-attachments.spec.ts`)
 
 Backend source of truth:
 
 - `apps/backend/src/**/*.spec.ts`
 - `apps/backend/test/**/*.e2e-spec.ts`
+
+Attachment worker source of truth:
+
+- `apps/attachment-worker/tests/test_pure_worker.py` (pytest unit tests)
+- `apps/attachment-worker/tests/e2e_verify.py` run through `apps/attachment-worker/tools/run_local_e2e.sh`
 
 Mobile source of truth:
 

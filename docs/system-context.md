@@ -12,6 +12,7 @@ It includes:
 - OpenClaw HTTP adapter for the external OpenClaw runtime
 - Hermes and OpenClaw agent providers behind a Kyrae orchestrator
 - STT gateway for speech-to-text provider integration
+- Assistant attachments pipeline with private storage and an internal extraction worker (`apps/attachment-worker`)
 - PostgreSQL + TypeORM
 - Shared contracts package
 - Role/permission based authorization
@@ -23,7 +24,7 @@ It includes:
 
 The IAM and security foundation must remain reusable. Unrelated business modules must not be added unless a specification explicitly requires them.
 
-`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. `apps/openclaw-http-adapter` is the repository-owned HTTP wrapper intended to run next to the external OpenClaw CLI/runtime. Web and mobile voice input are implemented through the backend voice STT adapter. Clients call Kyrae backend only; `apps/openclaw-http-adapter` and `apps/stt-gateway` are internal backend dependencies and must not be called directly by web or mobile clients. Voice output remains a documented target capability only.
+`OpenClaw` has a backend text-message adapter. The adapter defaults to mock mode and can call an external OpenClaw-compatible HTTP service when configured. `apps/openclaw-http-adapter` is the repository-owned HTTP wrapper intended to run next to the external OpenClaw CLI/runtime. Web and mobile voice input are implemented through the backend voice STT adapter. Clients call Kyrae backend only; `apps/openclaw-http-adapter` and `apps/stt-gateway` are internal backend dependencies and must not be called directly by web or mobile clients. Voice output is implemented through the backend voice TTS adapter. Web and mobile chat attachments are handled by the backend `assistant-attachments` module plus the internal `apps/attachment-worker` extraction worker, which is also not client-facing.
 
 ## Current Modules
 
@@ -41,6 +42,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - messages
 - openclaw
 - agents
+- assistant-attachments
 - voice
 - health
 - security
@@ -62,6 +64,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - configuration
 - assistant
 - assistant voice output
+- assistant attachments
 
 ### Mobile (Official Beta)
 
@@ -69,6 +72,7 @@ The IAM and security foundation must remain reusable. Unrelated business modules
 - home (dashboard)
 - profile
 - assistant text chat
+- assistant chat attachments
 - assistant voice input
 - assistant voice output
 
@@ -101,6 +105,7 @@ Current contract areas:
 - branches
 - configuration
 - openclaw
+- attachments
 - voice
 - common
 
@@ -166,6 +171,33 @@ Not implemented:
 - Agent task execution beyond adapter request/response.
 - Real push notifications through FCM/APNs for completed assistant tasks.
 
+## Assistant Attachments
+
+Current implementation:
+
+- Web and mobile assistant chat accepts up to 5 original files per message, 20 MiB (20,971,520 bytes) each, 100 MiB (104,857,600 bytes) aggregate, with original filenames up to 255 bytes; limits are canonical in `packages/shared-contracts/src/attachments/attachment.contracts.ts` and enforced by the backend.
+- Approved original formats: `pdf`, `docx` (documents); `jpg`, `jpeg`, `png`, `webp`, `heic`, `heif` (images); `xlsx`, `csv`, `tsv` (spreadsheets); `txt`, `md`, `json`, `xml`, `yaml`, `yml`, `toml`, `ini` and `env.example` filename patterns (text/config); textual logs and source code. `.env` files are explicitly rejected.
+- Endpoints, all under `JwtAuthGuard`, `PermissionsGuard` and `ASSISTANT_CHAT_USE` with owner-scoped access:
+  - `GET /messages/attachment-capabilities`
+  - `POST /messages/upload-batches`
+  - `GET /messages/upload-batches/:id`
+  - `POST /messages/upload-batches/:id/files` (multipart/form-data)
+  - `DELETE /messages/upload-batches/:id`
+  - `DELETE /messages/upload-batches/:id/files/:attachmentId`
+  - `GET /messages/attachments/:id`
+  - `GET /messages/attachments/:id/content` (original bytes)
+  - `GET /messages/attachments/:id/thumbnail`
+- `POST /messages` and `POST /messages/tasks` accept optional additive `uploadBatchId`, `attachmentIds` (1–5 unique ids matching the batch) and `clientMessageId` (owner-scoped idempotency key). Attachment sends always create a durable assistant task and reuse task polling plus Socket.IO events; message/task/send responses expose additive `attachments`, `contextManifest` and output-accounting metadata.
+- Upload staging uses a fixed 24-hour batch expiry; attached originals have no age expiry; the active upload lease is 10 minutes with a 300-second upload request maximum; delete waits 310 seconds after cancellation and orphan reconciliation uses a 48-hour grace.
+- Originals and derivatives are flat UUID-keyed private filesystem objects; the backend resolves both under `ASSISTANT_ATTACHMENT_STORAGE_ROOT` per `apps/backend/src/assistant-attachments/PROTOCOL.md`, and streams originals/thumbnails with private no-store headers while auditing downloads.
+- The agent layer serializes a `kyrae-attachment-envelope-v1` request: authoritative system policy plus a single current user turn with quoted history/attachment records, inline JPEG/PNG data-URL images (≤1 MiB each, ≤5 images, long edge ≤2,048 px), ≤9,000,000 serialized JSON bytes, ≤60,000 combined UTF-16 text units and ≤24,000 accounted input tokens. Raw responses are read incrementally up to 262,144 bytes with a 120-second deadline; valid answers above 16,000 UTF-16 units persist partial-output metadata; stale dispatching leases become indeterminate failures and never trigger automatic redispatch.
+- `apps/attachment-worker` is the repository-owned Python extraction worker. It claims `kind='process'` jobs only from `assistant_attachment_jobs` with `FOR UPDATE SKIP LOCKED`, 60-second leases, 15-second heartbeats and generation fencing; parses PDF (text + OCR), DOCX/XLSX (stdlib zip+expat), text/config/log/source, and images (HEIC/HEIF→JPEG/PNG conversion, normalization, thumbnails); writes derivative objects before one fenced publish transaction; and makes no provider or network calls. The backend claims `dispatch`/`delete` jobs only.
+- The compose `attachment-worker` service shares the private `attachments-storage` volume read/write with the backend and runs hardened: read-only root filesystem, tmpfs scratch, dropped capabilities, `no-new-privileges` and resource limits. Derivative keys are published flat inside `ASSISTANT_ATTACHMENT_STORAGE_ROOT`, matching `PROTOCOL.md`.
+- Capability gating is live: `GET /messages/attachment-capabilities` composes the backend-private `ASSISTANT_MODEL_PROFILES_JSON` profile, `ASSISTANT_ATTACHMENT_WORKER_VALIDATED`, the storage root and provider identity into a sanitized projection with `available=false` and explicit `unavailableReasons` until all activation evidence flags are true. Default `.env.example` values keep the feature unavailable; live Hermes attachment analysis is not validated and the feature is not production deployed.
+- Audit events include `ASSISTANT_ATTACHMENTS_COMMITTED`, `ASSISTANT_ATTACHMENT_DOWNLOAD_STARTED/COMPLETED/ABORTED` and `ASSISTANT_ATTACHMENT_DISPATCH_FAILED`; audit metadata carries no file bytes, extracted text or provider payloads.
+- Database tables (migration `1716090000000-add-assistant-attachments.ts`): `assistant_upload_batches`, `assistant_attachments`, `assistant_attachment_derivatives`, `assistant_attachment_jobs`, `assistant_message_submissions`, `assistant_message_contexts`.
+- Recorded local evidence: worker 21/21 unit tests and 13/13 local e2e expectations (`apps/attachment-worker/README-worker-ops.md`); web attachment e2e suite `apps/frontend/e2e/assistant-attachments.spec.ts` via `apps/frontend/playwright.attachments.config.ts`. Residual activation gates (runtime/model evidence, native amd64 build, device/gallery parity, full QA) remain open; no live Hermes validation and no production deployment are claimed.
+
 ## Agent Providers and Executions
 
 Current implementation:
@@ -175,6 +207,7 @@ Current implementation:
 - OpenClaw remains a secondary provider through the existing HTTP Adapter.
 - `AgentExecution` and `AgentExecutionEvent` persist provider-neutral lifecycle state and normalized events.
 - Existing OpenClaw conversations are migrated as `legacy-openclaw`; new conversations resolve Hermes by default.
+- Typed attachment requests (`AgentChatMessage` content parts) are CHAT-only and Hermes-only: Hermes serializes them through `attachment-hermes.protocol.ts`, streaming and RUN lifecycles reject typed parts, and OpenClaw rejects typed parts with `ATTACHMENTS_UNSUPPORTED_PROVIDER`. Attachment dispatch is a backend pump (`AttachmentDispatcher`) that claims `dispatch` jobs and requires an activated attachment model profile.
 
 Environment variables:
 
@@ -249,6 +282,8 @@ Assistant currently exposes:
 - `ASSISTANT_CHAT_USE`
 - `ASSISTANT_VOICE_USE`
 - `ASSISTANT_VOICE_OUTPUT_USE`
+
+Assistant attachments reuse `ASSISTANT_CHAT_USE`; no new permission code is introduced.
 
 ## Organizations And Branches
 
@@ -327,7 +362,7 @@ Frontend API base URL source:
 - mobile client lives in `apps/mobile`
 - mobile consumes backend APIs without bypassing auth/authorization rules
 - mobile refresh token flow is implemented; expired tokens are automatically refreshed via AuthInterceptor
-- beta scope includes auth, home (dashboard), profile, assistant text chat, assistant voice input, and assistant voice output
+- beta scope includes auth, home (dashboard), profile, assistant text chat, assistant voice input, assistant voice output, and assistant chat attachments
 - mobile modules outside beta scope are intentionally not implemented yet
 
 ## Backend Rules
@@ -399,6 +434,23 @@ STT gateway variables:
 - `OPENAI_TIMEOUT_MS`
 - `STT_MAX_AUDIO_MB`
 
+Assistant attachments variables:
+
+- `ASSISTANT_ATTACHMENT_STORAGE_ROOT`
+- `ASSISTANT_ATTACHMENT_WORKER_VALIDATED`
+- `ASSISTANT_MODEL_PROFILES_JSON`
+
+Attachment worker variables (docker-compose `attachment-worker` service; documented in `apps/attachment-worker/README-worker-ops.md`):
+
+- `ASSISTANT_ATTACHMENT_STORAGE_ROOT`
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`
+- `WORKER_POLL_SECONDS`
+- `WORKER_LEASE_SECONDS`
+- `WORKER_HEARTBEAT_SECONDS`
+- `WORKER_MAX_TRANSIENT_ATTEMPTS`
+- `WORKER_JOB_DEADLINE_SECONDS`
+- `WORKER_CPU_SECONDS`
+
 Frontend does not use runtime `NG_APP_*` variables. It uses Angular environment files.
 
 ## Validation Commands
@@ -420,6 +472,12 @@ Backend:
 - `pnpm backend:build`
 - `pnpm backend:test`
 - `pnpm backend:test:e2e`
+
+Attachment worker:
+
+- `docker build --target test -t kyrae-attachment-e2e:local apps/attachment-worker/`
+- `apps/attachment-worker/tools/run_local_e2e.sh kyrae-attachment-e2e:local`
+- `docker run --rm kyrae-attachment-e2e:local` (pure unit tests)
 
 Database:
 
