@@ -1,6 +1,7 @@
 """PDF text + bbox OCR. First 100 pages; first 20 OCR-needing pages at 150 dpi (<=8 MP)."""
 
 import io
+import os
 import re
 
 from ..errors import WorkerError
@@ -45,7 +46,7 @@ def _text_pages(job, result, deadline, cap):
         job, PAGE_TEXT_TIMEOUT, 4 * 1024 * 1024,
     )
     del encoded
-    with open("doc.txt", "rb") as stream:
+    with open(os.path.join(job["path"], "doc.txt"), "rb") as stream:
         document = stream.read(4 * 1024 * 1024)
     pages = document.decode("utf-8", "strict").split("\f") if document else []
     if document and len(pages) < cap:
@@ -58,7 +59,7 @@ def _text_pages(job, result, deadline, cap):
 
 
 def _ocr_pages(job, result, deadline, cap):
-    with open("doc.txt", "rb") as stream:
+    with open(os.path.join(job["path"], "doc.txt"), "rb") as stream:
         document = stream.read(4 * 1024 * 1024)
     pages = document.decode("utf-8", "strict").split("\f") if document else []
     needing = []
@@ -80,7 +81,7 @@ def _ocr_pages(job, result, deadline, cap):
 
 def _ocr_page(job, result, number):
     from PIL import Image  # lazy: unit tests without Pillow skip this import path
-    with open("page.png", "rb") as stream:
+    with open(os.path.join(job["path"], "page.png"), "rb") as stream:
         image = Image.open(io.BytesIO(stream.read()))
     width, height = image.size
     image.close()
