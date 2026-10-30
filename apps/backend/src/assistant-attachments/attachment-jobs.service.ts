@@ -23,12 +23,16 @@ export class AttachmentJobsService {
         [kind]
       );
       if (!rows.length) return null;
-      const claimed: AssistantAttachmentJob[] = await em.query(
+      // UPDATE ... RETURNING * arrives positionally on TypeORM 1.0 raw queries;
+      // the row is re-read hydrated instead of using its raw value row.
+      await em.query(
         `UPDATE assistant_attachment_jobs SET state='running', attempts=attempts+1, generation=generation+1,
-        lease_owner=$2,lease_until=now()+interval '60 seconds',updated_at=now() WHERE id=$1 RETURNING *`,
+        lease_owner=$2,lease_until=now()+interval '60 seconds',updated_at=now() WHERE id=$1`,
         [rows[0].id, this.owner]
       );
-      return claimed[0];
+      return await em.findOneBy(AssistantAttachmentJob, {
+        id: rows[0].id,
+      });
     });
   }
 
