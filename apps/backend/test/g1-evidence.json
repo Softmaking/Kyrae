@@ -1,0 +1,76 @@
+{
+  "feature": "assistant-chat-attachments",
+  "gate": "G1-live-model-capability",
+  "authorization": "User authorized live Hermes activation probes (2026-10-29, chat: 'si'). Total authorized: 12 requests. Used: 11. Reserved: 1 (unused).",
+  "harness": "apps/backend/test/g1-model-capability-proof.cjs",
+  "budgetLedger": [
+    { "run": 1, "args": "--used-posts=0", "calls": 6, "probes": ["identity_models_list", "identity_question", "image_input_red", "image_accounting_baseline", "image_accounting_delta", "large_prompt_near_constraint(assert-fail-pre-dispatch,no-call)"] },
+    { "run": 2, "args": "--used-posts=6 --only=large_prompt_near_constraint", "calls": 1, "probes": ["large_prompt_near_constraint(strict-assert-fail-post-dispatch)"] },
+    { "run": 3, "args": "--used-posts=7 --only=large_prompt_near_constraint", "calls": 1, "probes": ["large_prompt_near_constraint PASS"] },
+    { "run": 4, "args": "--used-posts=8 --only=large_image_accounting", "calls": 1, "probes": ["large_image_accounting(harness-crash-post-dispatch,no-evidence)"] },
+    { "run": 5, "args": "--used-posts=9 --only=prompt_edge_below_constraint", "calls": 1, "probes": ["prompt_edge_below_constraint PASS"] },
+    { "run": 6, "args": "--used-posts=10 --only=large_image_accounting --baseline-prompt-tokens=9697", "calls": 1, "probes": ["large_image_accounting PASS"] }
+  ],
+  "base": "http://mac-mini-de-kyrae.tail1e9797.ts.net:8642",
+  "model": "hermes-agent",
+  "modelIdentity": {
+    "modelsListed": 1,
+    "configuredModelListed": true,
+    "responseModel": "hermes-agent",
+    "selfReported": "Hermes Agent by Nous Research, using OpenAI Codex gpt-5.6-sol",
+    "identityVerified": true
+  },
+  "imageInput": {
+    "transport": "inline-data-url",
+    "smallRed96x96": { "recognized": true, "answerColor": "red", "imageDeltaTokens": 36 },
+    "smallBlue96x96": { "recognized": true, "answerColor": "blue" },
+    "largeGreen2048x1280": { "recognized": true, "answerColor": "green", "imageDeltaTokens": 3098, "pngBytes": 10589, "dataUrlBytes": 14142 },
+    "imageInputVerified": true
+  },
+  "textAccounting": {
+    "mode": "utf8_bytes_upper_bound",
+    "usagePresentOnAllResponses": true,
+    "samples": [
+      { "utf16Units": 21599, "promptTokens": 26855, "bytesPerToken": 1 },
+      { "utf16Units": 53999, "promptTokens": 18695 },
+      { "utf16Units": 59705, "promptTokens": 19646 }
+    ],
+    "edgeProcessedAt59705Units": true,
+    "textAccountingVerified": true
+  },
+  "imageTokenUpperBound": 3200,
+  "imageTokenUpperBoundEvidence": "observed deltas 36 (96x96) and 3098 (2048x1280 solid PNG); conservative bound 3200 (long edge capped at 2048px by transport policy)",
+  "contextWindowTokens": 32768,
+  "contextWindowTokensEvidence": "conservative floor; verified only that 59,705 utf16 units prompt processed successfully within limits",
+  "policyValidated": true,
+  "policyEvidence": "approved direct-hermes-constraints-addendum: 9,000,000 outbound JSON bytes, 60,000 utf16 text units, 256KiB/120s response guard; edge probe processed 59,705 utf16 units",
+  "privacyValidated": true,
+  "privacyEvidence": "live probes confirm inline data-url image transport; no external storage call observed; attachment originals never sent to provider in G1",
+  "deploymentValidated": true,
+  "deploymentEvidence": "GET /health => 200 and GET /v1/models => 200 on the approved deployment at probe time (2026-10-29)",
+  "notValidated": [
+    "full kyrae-attachment-envelope-v1 end-to-end with real WM uploads (G1 uses raw chat-completions parts only; envelope protocol evidence remains from prior authorized proof cycle)",
+    "real-world JPEG/photo token cost bound (composite/organic images may exceed solid-PNG tiling cost)",
+    "documented response model identity is self-reported by the runtime"
+  ],
+  "environmentVariables": {
+    "ASSISTANT_MODEL_PROFILES_JSON": [
+      {
+        "provider": "HERMES",
+        "model": "hermes-agent",
+        "version": "g1-2026-10-29",
+        "evidenceVersion": "g1-2026-10-29",
+        "modelIdentityVerified": true,
+        "imageInputVerified": true,
+        "policyValidated": true,
+        "privacyValidated": true,
+        "deploymentValidated": true,
+        "textAccounting": "utf8_bytes_upper_bound",
+        "textAccountingEvidence": "g1 probes: utf8 accounting verified at 21,599/53,999/59,705 utf16 units",
+        "imageTokenUpperBound": 3200,
+        "imageAccountingEvidence": "g1 probes: observed deltas 36 and 3098; conservative bound 3200",
+        "contextWindowTokens": 32768
+      }
+    ]
+  }
+}

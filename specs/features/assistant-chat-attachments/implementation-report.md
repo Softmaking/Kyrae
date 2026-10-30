@@ -226,3 +226,21 @@ Independent QA reviewed the Phase 0 evidence and correctly did not accept the fu
 T00 remains incomplete; T01 has QA-accepted localized modern-arm64 libheif **1.23.7**/libde265 **1.1.3** actual-HEIC compatibility and partial native proof (nine native, seven sandboxed, eighteen unit cases). Modern amd64 build is **not completed**. T02 lacks physical-gallery retention/Android proof. The remainder of this historical section is superseded by "Implementation Deliverables and Test Evidence (T03–T13)" above; **T03–T11 are now implemented and T12/T13 are partially executed**. Remaining live profile/context/privacy/grounding, target-host/resources and physical-original evidence still gate affected activation/full release. The accepted source/log/encoding/English+Spanish OCR matrix requires no additional business approval; untested encodings/languages are explicit coverage. No full-feature QA acceptance is inferred.
 
 Historical order recorded for reference: **T03 contracts → T04 migration → T05 storage → T06 access/uploads → T07 worker → T08 envelope/context/output guards → T09 messaging/history → T10 Angular → T11 Flutter → T12 packaging/activation evidence → T13 independent QA** — this order was followed during implementation. Activation waits for applicable residual proofs. No build below is being rerun, and **no live Hermes validation, physical gallery proof or production deployment is claimed**.
+
+## G1 Live Activation (2026-10-29)
+
+The user explicitly authorized a fresh live budget of **12 requests** ("si" on the G1 activation question). The historical 16/16 Phase-0 ledger stays closed and unchanged; this is a new, separately authorized cycle recorded in `apps/backend/test/g1-evidence.json` (budget ledger runs 1–6) and executed by the new harness `apps/backend/test/g1-model-capability-proof.cjs` (custom CRC32/deflate synthetic PNGs, budget assertion before each dispatch, no bodies or fixtures persisted).
+
+Results (11/12 used, 1 reserved and intentionally unused):
+
+- **Model identity verified**: `/v1/models` lists the configured `hermes-agent`; chat response reports `hermes-agent`; the runtime self-reports "Hermes Agent by Nous Research, using OpenAI Codex gpt-5.6-sol" (self-report, recorded as-is).
+- **Image input verified**: inline data-URL vision recognized three independent synthetic images by dominant color (96×96 red, 96×96 blue, 2048×1280 green).
+- **Image accounting verified**: observed prompt-token deltas 36 (small) and 3098 (2048×1280); conservative `imageTokenUpperBound=3200` recorded (transport caps the long edge at 2048 px; 3200×5=16,000 satisfies the approved ceiling).
+- **Text accounting verified**: `usage.prompt_tokens` present on every response; utf8 upper-bound accounting sampled at 21,599 / 53,999 / 59,705 UTF-16 units; the edge prompt processed successfully.
+- **Policy validated**: the approved constraints addendum caps (9,000,000-byte JSON, 60,000 UTF-16 units, 256 KiB/120 s response guard) were exercised at the 59,705-unit edge.
+- **Privacy validated**: images travel only as inline data-URLs; providers observe no attachment-storage access.
+- **Deployment validated**: `GET /health` and `GET /v1/models` returned 200 on the approved deployment at probe time.
+
+Activation applied: private profile written to `apps/backend/.env` (`ASSISTANT_MODEL_PROFILES_JSON`, version/evidence `g1-2026-10-29`). The real `AttachmentModelProfiles.capabilities()` now resolves **`available=true`** with zero `unavailableReasons` (verified via ts-node against the production service). Backend lint clean, unit 65/65 green after activation. `.env.example` keeps `[]` as the ship default and points to the evidence file for the validated shape.
+
+Recorded residual limits of this activation (honest scope): G1 covered raw chat-completions capability probes; a full `kyrae-attachment-envelope-v1` end-to-end round trip with real uploads has not been re-run on this budget, real-world JPEG/photo token cost may exceed the solid-PNG derived bound (mitigated by the 3200 conservative ceiling), and the model identity rests on the runtime's self-report. Gates G2 (amd64/seccomp), G3 (physical gallery/Android) and G4 (full QA sign-off of activation) remain open and unaffected.
